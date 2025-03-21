@@ -1,6 +1,6 @@
 ﻿namespace register_packager;
 
-public readonly record struct Package(List<RegisterPair[]> Joins)
+public readonly record struct Package(List<RegisterPair> Registers)
 {
-    public override string ToString() => $"{string.Join(", ", Joins.Select(x => $"[{string.Join("; ", x.Select(x => $"{x.Start.Address}-{x.End.Address}"))}]"))}";
+    public override string ToString() => $"{string.Join(", ", Registers.Select(x => x.ToString()))}";
 }

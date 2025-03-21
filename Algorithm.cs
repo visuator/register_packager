@@ -10,7 +10,7 @@
 // 1:r 10:r 25:r ml:16
 // ok(1-10:p 25:p -> 9:g), bad(1:p 10-25:p -> 14:g)
 // 1:r 10:r 25:r ml:26
-// ok(1-25:p -> 14:g)
+// ok(1-25:p -> 14:g), bad(<empty>)
 // 1:r 25:r 45:r ml:26
 // ok(1:p 25-45:p -> 19:g), bad(1-25:p 45:p -> 23:g)
 
@@ -34,25 +34,25 @@ public class Algorithm
         var list = new List<Node>();
         var remainingLength = RegistersLimit;
         var index = 0;
-        NextPackageRecursive(registers, list, null, index, remainingLength, default);
+        NextNodeRecursive(registers, list, null, index, remainingLength, default);
+
         var sb = new StringBuilder();
-        foreach (var node in list)
-        {
-            PrintRecursive(list, sb, node, 0);
-        }
+        PrintRecursive(list, sb, list, 0);
         debugPrintedTree = sb.ToString();
+
         return [];
     }
-    private static void PrintRecursive(List<Node> list, StringBuilder sb, Node? value, int space)
+    private static void PrintRecursive(List<Node> list, StringBuilder sb, List<Node> value, int space)
     {
-        if (value is not null)
+        foreach (var v in value)
         {
-            sb.Append(string.Concat(Enumerable.Range(0, space).Select(x => '\t')));
-            sb.AppendLine(value.ToString());
-            PrintRecursive(list, sb, value.Next, space + 2);
+            var vl = v.ToString();
+            sb.Append(string.Concat(Enumerable.Range(0, space).Select(x => ' ')));
+            sb.AppendLine(vl);
+            PrintRecursive(list, sb, v.Next, vl.Length);
         }
     }
-    private static void NextPackageRecursive(
+    private static void NextNodeRecursive(
         Register[] registers,
         List<Node> list,
         Node? parent,
@@ -60,17 +60,17 @@ public class Algorithm
         int remainingLength,
         in RegisterPair previousJoin)
     {
-        var takenRegisters = new List<RegisterPair>();
-        var package = new Package([]);
-        var copy = index;
+        List<RegisterPair> takenPairs = [];
         while (TryTakeNextPair(registers, ref index, ref remainingLength, out var pair) && remainingLength > 0)
         {
-            takenRegisters.Add(pair);
-            package.Joins.Add(takenRegisters.ToArray());
             var lessGarbageJoin = previousJoin.CompareByGarbage(pair);
-            var node = parent?.SetNext(package) ?? new Node(null, package);
-            list.Add(node);
-            NextPackageRecursive(registers, list, node, index, remainingLength, in lessGarbageJoin);
+            takenPairs.Add(lessGarbageJoin);
+            var node = parent?.SetNext(takenPairs.ToArray()) ?? new Node(null, takenPairs.ToArray());
+            if (node.Parent is null)
+            {
+                list.Add(node);
+            }
+            NextNodeRecursive(registers, list, node, index, remainingLength, in lessGarbageJoin);
         }
     }
     private static bool TryTakeNextPair(Register[] registers, ref int index, ref int remainingLength, out RegisterPair pair)
@@ -82,9 +82,10 @@ public class Algorithm
             if (index + 1 < registersCount)
             {
                 var next = registers[index + 1];
+                var distance = next.Address - start.Address + 1;
                 pair = new(start, next);
                 index += 2;
-                remainingLength -= 2;
+                remainingLength -= distance;
                 return true;
             }
             pair = RegisterPair.CreateSingle(start);
@@ -97,11 +98,17 @@ public class Algorithm
     }
 }
 
-public class Node(Node? parent, Package? value)
+public class Node(Node? parent, RegisterPair[] value)
 {
-    public Node? Next { get; set; }
+    public List<Node> Next { get; set; } = [];
     public Node? Parent { get; init; } = parent;
-    public Package? Value { get; init; } = value;
-    public Node SetNext(Package package) => Next = new(this, package);
-    public override string ToString() => $"| {Value}";
+    public RegisterPair[] Value { get; init; } = value;
+    public Node SetNext(RegisterPair[] join)
+    {
+        var node = new Node(this, join);
+        Next.Add(node);
+        return node;
+    }
+
+    public override string ToString() => $"| [{string.Join(", ", Value)}]";
 }
