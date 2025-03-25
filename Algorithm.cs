@@ -43,8 +43,6 @@ public class Algorithm
         }
         return BinarySearch(array, searchedValue, middle + 1, last);
     }
-    //int[] отрезок
-    //int[][] массив отрезков - пакетов
     private static int[][] Slice(int limit, (int Start, int End)[] holes, int[] vertices, bool split)
     {
         var slices = vertices.Select((t, i) => new[] { vertices[..i], vertices[i..] }.Where(x => x.Length != 0).ToArray()).Where(x => split ? !x.Any(x => x.SequenceEqual(vertices)) : true).ToArray();
