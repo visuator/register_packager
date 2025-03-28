@@ -18,4 +18,13 @@ public class Tests(ITestOutputHelper testOutputHelper)
         var chunks = Algorithm.Solve(addresses, holes.Select(x => (x, x)).ToArray(), limit);
         testOutputHelper.WriteLine($"{string.Join(", ", chunks.Select(x => $"[{string.Join(", ", x)}]"))}");
     }
+    [Fact]
+    public void Sample2()
+    {
+        var limit = 16;
+        var addresses = Enumerable.Range(0, 1000).Select(x => Random.Shared.Next(0, 5000)).OrderBy(x => x).ToArray();
+        var holes = Enumerable.Range(0, 30).Select(x => (Random.Shared.Next(0, 1000), Random.Shared.Next(1000, 5000))).OrderBy(x => x).ToArray();
+        var chunks = Algorithm.Solve(addresses, holes, limit);
+        testOutputHelper.WriteLine($"{string.Join(", ", chunks.Select(x => $"[{string.Join(", ", x)}]"))}");
+    }
 }
