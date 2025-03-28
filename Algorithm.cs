@@ -77,6 +77,7 @@ public class Algorithm
     private record struct CombinationInfo(ChunkInfo[] Combination, int Distance);
     private static CombinationInfo Slice(int limit, (int Start, int End)[] holes, int[] registers, bool split)
     {
+        // memoize!!!
         List<int[][]> res = [];
         var m = BreakByHoles(holes, registers).ToArray();
         if (m.Length > 0)
