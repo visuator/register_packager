@@ -43,17 +43,6 @@ public class Algorithm
         }
         return BinarySearch(array, searchedValue, middle + 1, last);
     }
-    static List<int[][]> Generate(int[][] array)
-    {
-        return new List<int[][]>
-        {
-            array, // Первый вариант - без изменений
-            array.SelectMany(subArray => subArray.Length == 1
-                ? new int[][] { subArray }
-                : subArray.Select(x => new int[] { x }).ToArray()
-            ).ToArray() // Второй вариант - разбиение массивов
-        };
-    }
     private static IEnumerable<int[]> BreakByHoles((int Start, int End)[] holes, int[] registers)
     {
         var previous = registers[0];
@@ -82,16 +71,6 @@ public class Algorithm
         if (taken.Count != 0)
         {
             yield return taken.ToArray();
-        }
-    }
-
-    private static IEnumerable<int[][][]> Chunk(int[][] lengths, int i)
-    {
-        for (var index = i; index < lengths.Length; index++)
-        {
-            var l = lengths[index];
-            var m = l.Select((_, j) => new[] { l[..i], l[i..] }).Concat(Chunk(lengths, i + 1).SelectMany(x => x)).ToArray();
-            yield return m;
         }
     }
     private record struct ChunkInfo(int[] Chunk, int Distance);
@@ -147,6 +126,5 @@ public class Algorithm
         }
         return _t.MinBy(x => x.Distance);
     }
-
     private static int CalculateDistance(int[] chunk) => chunk.Length == 0 ? 0 : chunk[^1] - chunk[0] + 1;
 }
