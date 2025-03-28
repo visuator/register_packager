@@ -23,7 +23,7 @@ public class Algorithm
     public static int[][] Solve(int[] vertices, (int Start, int End)[] holes, int limit)
     {
         var slices = Slice(limit, holes, vertices, false);
-        return slices;
+        return slices.Combination.Select(x => x.Chunk).ToArray();
     }
     private static bool BinarySearch((int Start, int End)[] array, int searchedValue, int first, int last)
     {
@@ -43,34 +43,109 @@ public class Algorithm
         }
         return BinarySearch(array, searchedValue, middle + 1, last);
     }
-    private static int[][] Slice(int limit, (int Start, int End)[] holes, int[] vertices, bool split)
+    static List<int[][]> Generate(int[][] array)
     {
-        var slices = vertices.Select((t, i) => new[] { vertices[..i], vertices[i..] }.Where(x => x.Length != 0).ToArray()).Where(x => split ? !x.Any(x => x.SequenceEqual(vertices)) : true).ToArray();
-        var slicesWithDistance = slices.Select(x => (Distance: x.Select(CalculateDistance).Max(), Src: x)).ToArray();
-        var minLength = slicesWithDistance.Min(x => x.Src.Length);
-        var minSlices = slicesWithDistance.Where(x => x.Src.Length == minLength).ToArray();
-        var minMax = minSlices.Min(x => x.Distance);
-        var bestSlices = slicesWithDistance.Where(x => x.Distance == minMax).ToArray();
-        List<(int Distance, List<int[]>)> results = [];
-        foreach (var (_, src) in bestSlices)
+        return new List<int[][]>
         {
-            List<int[]> temp = [];
-            foreach (var chunk in src)
+            array, // Первый вариант - без изменений
+            array.SelectMany(subArray => subArray.Length == 1
+                ? new int[][] { subArray }
+                : subArray.Select(x => new int[] { x }).ToArray()
+            ).ToArray() // Второй вариант - разбиение массивов
+        };
+    }
+    private static IEnumerable<int[]> BreakByHoles((int Start, int End)[] holes, int[] registers)
+    {
+        var previous = registers[0];
+        var current = previous;
+        var i = 0;
+        List<int> taken = [];
+        while (i < registers.Length)
+        {
+            for (var j = previous; j <= current; j++)
             {
-                if (CalculateDistance(chunk) <= limit)
+                if (BinarySearch(holes, j, 0, holes.Length - 1))
                 {
-                    temp.Add(chunk);
-                    continue;
+                    yield return taken.ToArray();
+                    taken = [];
+                    break;
                 }
-                if (CalculateDistance(chunk) > limit)
+                if (j == current)
                 {
-                    temp.AddRange(Slice(limit, holes, chunk, true));
+                    taken.Add(registers[i]);
                 }
             }
-            var c = temp.Select(CalculateDistance).Sum();
-            results.Add((c, temp));
+            i++;
+            previous = current;
+            current = registers[Math.Min(i, registers.Length - 1)];
         }
-        return results.MinBy(x => x.Distance).Item2.ToArray();
+        if (taken.Count != 0)
+        {
+            yield return taken.ToArray();
+        }
+    }
+
+    private static IEnumerable<int[][][]> Chunk(int[][] lengths, int i)
+    {
+        for (var index = i; index < lengths.Length; index++)
+        {
+            var l = lengths[index];
+            var m = l.Select((_, j) => new[] { l[..i], l[i..] }).Concat(Chunk(lengths, i + 1).SelectMany(x => x)).ToArray();
+            yield return m;
+        }
+    }
+    private record struct ChunkInfo(int[] Chunk, int Distance);
+    private record struct CombinationInfo(ChunkInfo[] Combination, int Distance);
+    private static CombinationInfo Slice(int limit, (int Start, int End)[] holes, int[] registers, bool split)
+    {
+        List<int[][]> res = [];
+        var m = BreakByHoles(holes, registers).ToArray();
+        if (m.Length > 0)
+        {
+            var c1 = m[0];
+            if (1 < m.Length)
+            {
+                for (var j = 1; j < m.Length; j++)
+                {
+                    var c2 = m[j];
+                    for (var k = 0; k < c2.Length; k++)
+                    {
+                        res.Add([c1, c2[..k], c2[k..]]);
+                    }
+                }
+            }
+            else
+            {
+                for (var k = 0; k < c1.Length; k++)
+                {
+                    res.Add([c1[..k], c1[k..]]);
+                }
+            }
+        }
+        List<CombinationInfo> _t = [];
+        var combinationInfos = res.Select(x => new CombinationInfo(x.Select(x => new ChunkInfo(x, CalculateDistance(x))).ToArray(), x.Sum(x => CalculateDistance(x)))).ToArray().ToArray();
+        var min1 = combinationInfos.Min(x => x.Distance);
+        foreach (var ci in combinationInfos.Where(x => x.Distance == min1))
+        {
+            List<ChunkInfo> newChunks = [];
+            var s = 0;
+            foreach (var c in ci.Combination)
+            {
+                if (c.Distance > limit)
+                {
+                    var newCombination = Slice(limit, holes, c.Chunk, true);
+                    s += newCombination.Distance;
+                    newChunks.AddRange(newCombination.Combination);
+                }
+                else
+                {
+                    s += c.Distance;
+                    newChunks.Add(c);
+                }
+            }
+            _t.Add(new CombinationInfo(newChunks.ToArray(), s));
+        }
+        return _t.MinBy(x => x.Distance);
     }
 
     private static int CalculateDistance(int[] chunk) => chunk.Length == 0 ? 0 : chunk[^1] - chunk[0] + 1;
