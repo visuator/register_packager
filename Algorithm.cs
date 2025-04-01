@@ -57,6 +57,7 @@ public class Algorithm
                 {
                     yield return taken.ToArray();
                     taken = [];
+                    i--;
                     break;
                 }
                 if (j == current)
