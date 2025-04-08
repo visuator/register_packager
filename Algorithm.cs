@@ -1,131 +1,136 @@
-﻿// r: required, p: package, g: garbage, ml: max length
-// priority = count(p) > sum(g)
-// distance = r_end - r_start + 1
-// garbage = required_end - required_start - 1
-
-// 1 8 9 12 ml: 8
-// ok(1, 8-12)
-// 1:r 10:r 21:r ml:12
-// ok(1-10:p 21:p -> 9:g), bad(1-1:p 10-21:p -> 10:g)
-// 1:r 10:r 25:r ml:12
-// ok(1-10:p 25:p -> 9:g), bad(<empty>)
-// 1:r 10:r 25:r ml:16
-// ok(1-10:p 25:p -> 9:g), bad(1:p 10-25:p -> 14:g)
-// 1:r 10:r 25:r ml:26
-// ok(1-25:p -> 14:g), bad(<empty>)
-// 1:r 25:r 45:r ml:26
-// ok(1:p 25-45:p -> 19:g), bad(1-25:p 45:p -> 23:g)
-
-namespace register_packager;
+﻿namespace register_packager;
 
 public class Algorithm
 {
-    public static int[][] Solve(int[] vertices, (int Start, int End)[] holes, int limit)
+    public static int[][] Solve(int max, int[] regs)
     {
-        var slices = Slice(limit, holes, vertices, false);
-        return slices.Combination.Select(x => x.Chunk).ToArray();
+        return JoinRecursive(max, Chunk(max, regs).ToArray(), 0, true).Where(x => x.Length != 0).ToArray();
     }
-    private static bool BinarySearch((int Start, int End)[] array, int searchedValue, int first, int last)
+    /*
+     * поделить greedy на чанки
+     * для каждой пары (n, n+1) через функцию f найти такое сочетание регистров, что мусор будет минимальным и левая часть будет < lim
+     * оставить левую часть без изменений, для правой части, если она больше lim, то попытаться вместить те регистры, убрав которые lim(правой части) <= lim. эти регистры попытаться вместить
+     * в следующий n + 2 чанк. если они вместились при lim(chunk) <= lim, то сохранить результат, в противном случае повторять процесс.
+     * так делать до тех пор, пока не закончатся доступные варианты
+     */
+    private static int[][] JoinRecursive(int max, int[][] chs, int i, bool canCreate)
     {
-        if (first > last)
+        ArgumentOutOfRangeException.ThrowIfZero(chs.Length);
+        while (i < chs.Length)
         {
-            return false;
-        }
-        var middle = (first + last) / 2;
-        var middleValue = array[middle];
-        if (searchedValue >= middleValue.Start && searchedValue <= middleValue.End)
-        {
-            return true;
-        }
-        if (middleValue.End > searchedValue)
-        {
-            return BinarySearch(array, searchedValue, first, middle - 1);
-        }
-        return BinarySearch(array, searchedValue, middle + 1, last);
-    }
-    private static IEnumerable<int[]> BreakByHoles((int Start, int End)[] holes, int[] registers)
-    {
-        var previous = registers[0];
-        var current = previous;
-        var i = 0;
-        List<int> taken = [];
-        while (i < registers.Length)
-        {
-            for (var j = previous; j <= current; j++)
+            var cur = chs[i];
+            if (i + 1 < chs.Length)
             {
-                if (BinarySearch(holes, j, 0, holes.Length - 1))
+                var fl = chs[i + 1];
+                ArgumentOutOfRangeException.ThrowIfZero(fl.Length);
+                var g = CalculateGarbage(cur) + CalculateGarbage(fl);
+                foreach (var (tl, jr) in Combine(cur, fl))
                 {
-                    yield return taken.ToArray();
-                    taken = [];
-                    break;
-                }
-                if (j == current)
-                {
-                    taken.Add(registers[i]);
-                }
-            }
-            i++;
-            previous = current;
-            current = registers[Math.Min(i, registers.Length - 1)];
-        }
-        if (taken.Count != 0)
-        {
-            yield return taken.ToArray();
-        }
-    }
-    private record struct ChunkInfo(int[] Chunk, int Distance);
-    private record struct CombinationInfo(ChunkInfo[] Combination, int Distance);
-    private static CombinationInfo Slice(int limit, (int Start, int End)[] holes, int[] registers, bool split)
-    {
-        // memoize!!!
-        List<int[][]> res = [];
-        var m = BreakByHoles(holes, registers).ToArray();
-        if (m.Length > 0)
-        {
-            var c1 = m[0];
-            if (1 < m.Length)
-            {
-                for (var j = 1; j < m.Length; j++)
-                {
-                    var c2 = m[j];
-                    for (var k = 0; k < c2.Length; k++)
+                    if (tl.Length == 0 || CalculateGarbage(tl) + CalculateGarbage(jr) < g)
                     {
-                        res.Add([c1, c2[..k], c2[k..]]);
+                        if (tl.Length != 0 && ExcessLimit(max, jr, out var taken, out var rest))
+                        {
+                            if (!canCreate)
+                            {
+                                continue;
+                            }
+                            var next = JoinRecursive(max, [..chs[..i], tl, taken, rest, ..chs[(i + 2)..]], i + 2, false);
+                            if (next.Length <= chs.Length)
+                            {
+                                chs = next;
+                                break;
+                            }
+                        }
+                        if (!ExcessLimit(max, jr))
+                        {
+                            int[][] join = tl.Length == 0 ? [jr] : [tl, [..jr]];
+                            chs = [..chs[..i], ..join, ..chs[(i + 2)..]];
+                            i++;
+                            break;
+                        }
                     }
                 }
             }
-            else
-            {
-                for (var k = 0; k < c1.Length; k++)
-                {
-                    res.Add([c1[..k], c1[k..]]);
-                }
-            }
+            i++;
         }
-        List<CombinationInfo> _t = [];
-        var combinationInfos = res.Select(x => new CombinationInfo(x.Select(x => new ChunkInfo(x, CalculateDistance(x))).ToArray(), x.Sum(x => CalculateDistance(x)))).ToArray().ToArray();
-        var min1 = combinationInfos.Min(x => x.Distance);
-        foreach (var ci in combinationInfos.Where(x => x.Distance == min1))
-        {
-            List<ChunkInfo> newChunks = [];
-            var s = 0;
-            foreach (var c in ci.Combination)
-            {
-                if (c.Distance > limit)
-                {
-                    var newCombination = Slice(limit, holes, c.Chunk, true);
-                    s += newCombination.Distance;
-                    newChunks.AddRange(newCombination.Combination);
-                }
-                else
-                {
-                    s += c.Distance;
-                    newChunks.Add(c);
-                }
-            }
-            _t.Add(new CombinationInfo(newChunks.ToArray(), s));
-        }
-        return _t.MinBy(x => x.Distance);
+        return chs;
     }
-    private static int CalculateDistance(int[] chunk) => chunk.Length == 0 ? 0 : chunk[^1] - chunk[0] + 1;
+    public static bool ExcessLimit(int max, int[] ch, out int[] taken, out int[] rest)
+    {
+        ArgumentOutOfRangeException.ThrowIfZero(ch.Length);
+        if (ExcessLimit(max, ch))
+        {
+            var i = ch.Length - 1;
+            while (i >= 0)
+            {
+                if (!ExcessLimit(max, ch[..i]))
+                {
+                    break;
+                }
+                i--;
+            }
+            rest = ch[i..];
+            taken = ch[..i];
+            return true;
+        }
+        rest = [];
+        taken = ch;
+        return false;
+    }
+    public static bool ExcessLimit(int max, int[] chunk) => chunk[^1] - chunk[0] + 1 > max;
+    public static int CalculateGarbage(int[] chunk)
+    {
+        if (chunk.Length == 0)
+        {
+            return 0;
+        }
+        var i = 0;
+        var g = 0;
+        var prev = chunk[0];
+        while (i < chunk.Length)
+        {
+            var cur = chunk[i];
+            g += Math.Max(0, cur - prev - 1);
+            prev = cur;
+            i++;
+        }
+        return g;
+    }
+    public static IEnumerable<(int[] TrimLeft, int[] JoinRight)> Combine(int[] ch1, int[] ch2)
+    {
+        var arr = ch1.Concat(ch2).ToArray();
+        for (var splitPoint = ch1.Length - 1; splitPoint >= 0; splitPoint--)
+        {
+            var trimLeft = arr.Take(splitPoint).ToArray();
+            var joinRight = arr.Skip(splitPoint).ToArray();
+            yield return (trimLeft, joinRight);
+        }
+    }
+    public static IEnumerable<int[]> Chunk(int max, int[] regs)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(max);
+        ArgumentOutOfRangeException.ThrowIfZero(regs.Length);
+        var i = 0;
+        var j = 0;
+        var l = 1;
+        var prev = regs[0];
+        while (i < regs.Length)
+        {
+            var cur = regs[i];
+            var d = cur - prev;
+            l += d;
+            if (l > max)
+            {
+                yield return regs[j..i];
+                l = 1;
+                j = i;
+            }
+            prev = cur;
+            i++;
+        }
+        if (l != 0)
+        {
+            yield return regs[j..i];
+        }
+    }
 }
