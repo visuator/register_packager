@@ -1,9 +1,10 @@
 ﻿using System.Security.Cryptography;
 using FluentAssertions;
+using register_packager;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace register_packager;
+namespace register_packager_tests;
 
 public class Fixture
 {
