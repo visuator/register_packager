@@ -178,15 +178,24 @@ public class Tests : IClassFixture<Fixture>
         result.Should().BeEquivalentTo((int[][]) [[1, 15, 25]], "[[1, 15, 25]] is optimal solution");
     }
 
+    //[[0], [4, 6, 7], [8, 9, 10, 11], [13, 14]]
     [Theory]
-    [InlineData(256, 16384)]
+    [InlineData(256, 131_072)]
     public void Should_Handle_Large_Amount_Of_Registers_Better_Than_Straightforward_Greedy(int maxLimit, int count)
     {
         var registers = Enumerable.Range(0, count)
-            .Select(_ => RandomNumberGenerator.GetInt32(0, 100_000))
+            .Select(_ => RandomNumberGenerator.GetInt32(0, count))
             .Distinct()
             .OrderBy(x => x)
             .ToArray();
         _fixture.Run(maxLimit, registers);
+    }
+
+    [Fact]
+    public void Test_Case_1()
+    {
+        int[][] source = [[0], [4, 6, 7], [8, 9, 10, 11], [13, 14]];
+        var registers = source.SelectMany(x => x).ToArray();
+        _fixture.Run(4, registers);
     }
 }
