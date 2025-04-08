@@ -18,8 +18,15 @@ public class Algorithm
                 var fl = chs[i + 1];
                 ArgumentOutOfRangeException.ThrowIfZero(fl.Length);
                 var g = CalculateGarbage(cur) + CalculateGarbage(fl);
-                foreach (var (tl, jr) in Combine(cur, fl))
+                PriorityQueue<(int[] TrimLeft, int[] JoinRight), int> pq = new();
+                foreach (var (tl, jr, g2) in Combine(g, cur, fl))
                 {
+                    pq.Enqueue((tl, jr), g2);
+                }
+                PriorityQueue<(int[][] Chunks, bool Inline), int> pq2 = new();
+                while (pq.Count != 0)
+                {
+                    var (tl, jr) = pq.Dequeue();
                     if (tl.Length == 0 || CalculateGarbage(tl) + CalculateGarbage(jr) < g)
                     {
                         if (tl.Length != 0 && ExcessLimit(max, jr, out var taken, out var rest))
@@ -31,17 +38,23 @@ public class Algorithm
                             var next = JoinRecursive(max, [..chs[..i], tl, taken, rest, ..chs[(i + 2)..]], i + 2, false);
                             if (next.Length <= chs.Length)
                             {
-                                chs = next;
-                                break;
+                                pq2.Enqueue((next, false), CalculateHeightWithGarbage(max, next));
                             }
                         }
                         if (!ExcessLimit(max, jr))
                         {
                             int[][] join = tl.Length == 0 ? [jr] : [tl, [..jr]];
-                            chs = [..chs[..i], ..join, ..chs[(i + 2)..]];
-                            i++;
-                            break;
+                            int[][] k = [..chs[..i], ..join, ..chs[(i + 2)..]];
+                            pq2.Enqueue((k, true), CalculateHeightWithGarbage(max, k));
                         }
+                    }
+                }
+                if (pq2.Count != 0)
+                {
+                    (chs, var inline) = pq2.Dequeue();
+                    if (inline)
+                    {
+                        i++;
                     }
                 }
             }
@@ -49,6 +62,10 @@ public class Algorithm
         }
         return chs;
     }
+    
+    public static int CalculateHeightWithGarbage(int max, int[][] chunks) => GetNumberWithZeros(max) + chunks.Sum(CalculateGarbage);
+    
+    private static int GetNumberWithZeros(int x) => (int)Math.Pow(10, (int)Math.Floor(Math.Log10(x)) + 1);
     
     public static bool ExcessLimit(int max, int[] ch, out int[] taken, out int[] rest)
     {
@@ -94,14 +111,18 @@ public class Algorithm
         return g;
     }
     
-    public static IEnumerable<(int[] TrimLeft, int[] JoinRight)> Combine(int[] ch1, int[] ch2)
+    public static IEnumerable<(int[] TrimLeft, int[] JoinRight, int Garbage)> Combine(int g, int[] ch1, int[] ch2)
     {
         var arr = ch1.Concat(ch2).ToArray();
         for (var splitPoint = ch1.Length - 1; splitPoint >= 0; splitPoint--)
         {
             var trimLeft = arr.Take(splitPoint).ToArray();
             var joinRight = arr.Skip(splitPoint).ToArray();
-            yield return (trimLeft, joinRight);
+            var garbage = CalculateGarbage(trimLeft) + CalculateGarbage(joinRight); 
+            if (garbage < g || trimLeft.Length == 0)
+            {
+                yield return (trimLeft, joinRight, garbage);
+            }
         }
     }
     

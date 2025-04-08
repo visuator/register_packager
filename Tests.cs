@@ -1,4 +1,5 @@
-﻿using Xunit;
+﻿using System.Security.Cryptography;
+using Xunit;
 using Xunit.Abstractions;
 
 namespace register_packager;
@@ -42,7 +43,7 @@ public class Tests(ITestOutputHelper testOutputHelper)
     public void SampleMax(int max, int count)
     {
         var reg = Enumerable.Range(0, count)
-            .Select(x => Random.Shared.Next(0, count))
+            .Select(x => RandomNumberGenerator.GetInt32(0, 100_000))
             .Distinct()
             .OrderBy(x => x)
             .ToArray();
@@ -77,7 +78,7 @@ public class Tests(ITestOutputHelper testOutputHelper)
     {
         int[] ch1 = [1, 2, 3, 4, 5];
         int[] ch2 = [6, 7, 8, 9, 10];
-        foreach (var (trimLeft, joinRight) in Algorithm.Combine(ch1, ch2))
+        foreach (var (trimLeft, joinRight, _) in Algorithm.Combine(10, ch1, ch2))
         {
             testOutputHelper.WriteLine($"[{string.Join(", ", trimLeft)}], [{string.Join(", ", joinRight)}]");
         }
@@ -87,7 +88,7 @@ public class Tests(ITestOutputHelper testOutputHelper)
     {
         int[] ch1 = [8];
         int[] ch2 = [9];
-        foreach (var (trimLeft, joinRight) in Algorithm.Combine(ch1, ch2))
+        foreach (var (trimLeft, joinRight, _) in Algorithm.Combine(10, ch1, ch2))
         {
             testOutputHelper.WriteLine($"[{string.Join(", ", trimLeft)}], [{string.Join(", ", joinRight)}]");
         }
