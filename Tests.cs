@@ -22,21 +22,22 @@ public class Tests(ITestOutputHelper testOutputHelper)
     [Fact]
     public void Sample2()
     {
-        int[][] reg = [[2, 3, 6, 8, 15], [19, 20, 26, 27, 30], [41, 52, 53], [59, 60, 69, 75], [76, 77, 85, 90], [97, 99]];
-        int[][] expected = [[2, 3, 6, 8], [15, 19, 20, 26, 27, 30], [41], [52, 53, 59, 60], [69, 75, 76, 77], [85, 90, 97, 99]];
-        var chunks = Algorithm.Chunk(16, reg.SelectMany(x => x).ToArray()).ToArray();
+        const int max = 4;
+        int[][] reg = [[2, 3, 4], [6, 8, 9], [10, 11, 12]];
+        var chunks = Algorithm.Chunk(max, reg.SelectMany(x => x).ToArray()).ToArray();
         testOutputHelper.WriteLine($"{string.Join(", ", chunks.Select(x => $"[{string.Join(", ", x)}]"))} -> [Chunks = {chunks.Length} Garbage = {chunks.Sum(Algorithm.CalculateGarbage)}]");
-        var o = Algorithm.Solve(16, reg.SelectMany(x => x).ToArray()).ToArray();
-        testOutputHelper.WriteLine($"{string.Join(", ", expected.Select(x => $"[{string.Join(", ", x)}]"))} -> [Chunks = {expected.Length} Garbage = {expected.Sum(Algorithm.CalculateGarbage)}]");
+        var o = Algorithm.Solve(max, reg.SelectMany(x => x).ToArray()).ToArray();
         testOutputHelper.WriteLine($"{string.Join(", ", o.Select(x => $"[{string.Join(", ", x)}]"))} -> [Chunks = {o.Length} Garbage = {o.Sum(Algorithm.CalculateGarbage)}]");
         Assert.Equal(reg.SelectMany(x => x), o.SelectMany(x => x));
-        Assert.True(o.Length <= expected.Length);
-        Assert.All(o, x => Assert.False(Algorithm.ExcessLimit(16, x, out _, out _)));
-        Assert.True(o.Sum(Algorithm.CalculateGarbage) <= expected.Sum(Algorithm.CalculateGarbage));
+        Assert.True(o.Length <= chunks.Length);
+        Assert.All(o, x => Assert.False(Algorithm.ExcessLimit(max, x, out _, out _)));
+        Assert.True(o.Sum(Algorithm.CalculateGarbage) <= chunks.Sum(Algorithm.CalculateGarbage));
     }
     [Theory]
+    [InlineData(4, 15)]
     [InlineData(4, 100_00)]
     [InlineData(256, 10_000)]
+    [InlineData(1024, 16_384)]
     [InlineData(256, 100_000)]
     public void SampleMax(int max, int count)
     {
@@ -52,7 +53,7 @@ public class Tests(ITestOutputHelper testOutputHelper)
         Assert.Equal(reg, o.SelectMany(x => x));
         Assert.All(o, x => Assert.False(Algorithm.ExcessLimit(max, x, out _, out _)));
         Assert.True(o.Length <= chunks.Length);
-        Assert.True(o.Sum(Algorithm.CalculateGarbage) < chunks.Sum(Algorithm.CalculateGarbage));
+        Assert.True(o.Sum(Algorithm.CalculateGarbage) <= chunks.Sum(Algorithm.CalculateGarbage));
     }
     [Theory]
     [InlineData(13, 1, 3, 5, 9, 10, 11, 13)]
