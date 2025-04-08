@@ -12,17 +12,21 @@ public class Fixture
     public int[][] Run(int maxLimit, int[] registers)
     {
         var result = Algorithm.Solve(maxLimit, registers);
+        var greedy = Chunk(maxLimit, registers).ToArray();
+        _testOutputHelper.WriteLine($"[{string.Join(", ", greedy.Select(x => $"[{string.Join(", ", x)}]"))}] -> [Chunks: {greedy.Length}, Garbage: {greedy.Sum(CalculateGarbage)}]");
+        _testOutputHelper.WriteLine(string.Empty);
         _testOutputHelper.WriteLine($"[{string.Join(", ", result.Select(x => $"[{string.Join(", ", x)}]"))}] -> [Chunks: {result.Length}, Garbage: {result.Sum(CalculateGarbage)}]");
-        DefaultAsserts(maxLimit, registers, result);
+        DefaultAsserts(maxLimit, registers, greedy, result);
         return result;
     }
-    private static void DefaultAsserts(int maxLimit, int[] registers, int[][] chunks)
+    private static void DefaultAsserts(int maxLimit, int[] registers, int[][] greedyChunks, int[][] chunks)
     {
         chunks.Should().NotBeEmpty();
-        chunks.SelectMany(x => x).Should().BeEquivalentTo(registers);
+        
+        var flattenChunks = chunks.SelectMany(x => x).ToArray();
+        flattenChunks.Should().BeEquivalentTo(registers);
+        
         chunks.Should().AllSatisfy(x => ExcessLimit(maxLimit, x).Should().BeFalse());
-
-        var greedyChunks = Chunk(maxLimit, registers).ToArray();
         chunks.Should().HaveCountLessThanOrEqualTo(greedyChunks.Length);
         chunks.Sum(CalculateGarbage).Should().BeLessThanOrEqualTo(greedyChunks.Sum(CalculateGarbage));
     }
@@ -135,15 +139,25 @@ public class Tests : IClassFixture<Fixture>
     [Fact]
     public void Should_Join_Chunks_If_Possible_1()
     {
-        const int maxLimit = 4;
+        const int maxLimit = 5;
         int[] registers = [1, 4, 5, 8, 9, 40];
 
         var result = _fixture.Run(maxLimit, registers);
-        result.Should().BeEquivalentTo((int[][]) [[1], [4, 5], [8, 9], [40]], "[[1], [4, 5], [8, 9] [40]] is optimal solution");
+        result.Should().BeEquivalentTo((int[][]) [[1, 4, 5], [8, 9], [40]], "[[1, 4, 5], [8, 9], [40]] is optimal solution");
     }
     
     [Fact]
     public void Should_Join_Chunks_If_Possible_2()
+    {
+        const int maxLimit = 4;
+        int[] registers = [1, 4, 5, 8, 9, 40];
+
+        var result = _fixture.Run(maxLimit, registers);
+        result.Should().BeEquivalentTo((int[][]) [[1], [4, 5], [8, 9], [40]], "[[1], [4, 5], [8, 9], [40]] is optimal solution");
+    }
+    
+    [Fact]
+    public void Should_Join_Chunks_If_Possible_3()
     {
         const int maxLimit = 6;
         int[] registers = [1, 2, 3, 4, 5, 6];
@@ -153,7 +167,7 @@ public class Tests : IClassFixture<Fixture>
     }
     
     [Fact]
-    public void Should_Join_Chunks_If_Possible_3()
+    public void Should_Join_Chunks_If_Possible_4()
     {
         const int maxLimit = 25;
         int[] registers = [1, 15, 25];
@@ -167,7 +181,7 @@ public class Tests : IClassFixture<Fixture>
     public void Should_Handle_Large_Amount_Of_Registers_Better_Than_Straightforward_Greedy(int maxLimit, int count)
     {
         var registers = Enumerable.Range(0, count)
-            .Select(x => RandomNumberGenerator.GetInt32(0, 100_000))
+            .Select(_ => RandomNumberGenerator.GetInt32(0, 100_000))
             .Distinct()
             .OrderBy(x => x)
             .ToArray();

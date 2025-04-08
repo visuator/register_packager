@@ -4,151 +4,170 @@ public class Algorithm
 {
     public static int[][] Solve(int max, int[] regs)
     {
-        return JoinRecursive(max, Chunk(max, regs).ToArray(), 0, true).Where(x => x.Length != 0).ToArray();
+        return JoinRecursive(max, Chunk(max, regs).ToArray(), 0, false).ToArray();
     }
 
-    private static int[][] JoinRecursive(int max, int[][] chs, int i, bool canCreate)
+    private static int[][] JoinRecursive(int maxLimit, int[][] chunks, int index, bool rearrange)
     {
-        ArgumentOutOfRangeException.ThrowIfZero(chs.Length);
-        while (i < chs.Length)
+        ArgumentOutOfRangeException.ThrowIfZero(chunks.Length);
+        
+        while (index < chunks.Length)
         {
-            var cur = chs[i];
-            if (i + 1 < chs.Length)
+            var current = chunks[index];
+            if (index + 1 < chunks.Length)
             {
-                var fl = chs[i + 1];
-                ArgumentOutOfRangeException.ThrowIfZero(fl.Length);
-                var g = CalculateGarbage(cur) + CalculateGarbage(fl);
-                PriorityQueue<(int[] TrimLeft, int[] JoinRight), int> pq = new();
-                foreach (var (tl, jr, g2) in Combine(g, cur, fl))
+                var follow = chunks[index + 1];
+                ArgumentOutOfRangeException.ThrowIfZero(follow.Length);
+
+                var min = -1;
+                var prefer = chunks;
+                foreach (var (trimLeft, joinRight) in CombineWithLowerGarbageThanSource(current, follow))
                 {
-                    pq.Enqueue((tl, jr), g2);
-                }
-                PriorityQueue<(int[][] Chunks, bool Inline), int> pq2 = new();
-                while (pq.Count != 0)
-                {
-                    var (tl, jr) = pq.Dequeue();
-                    if (tl.Length == 0 || CalculateGarbage(tl) + CalculateGarbage(jr) < g)
+                    if (trimLeft.Length != 0 && ExcessLimit(maxLimit, joinRight, out var taken, out var rest))
                     {
-                        if (tl.Length != 0 && ExcessLimit(max, jr, out var taken, out var rest))
+                        if (rearrange)
                         {
-                            if (!canCreate)
+                            continue;
+                        }
+                        var next = JoinRecursive(maxLimit, InjectChunks(chunks, index, out var startIndex, trimLeft, taken, rest), startIndex, true);
+                        if (next.Length <= chunks.Length)
+                        {
+                            var g = next.Sum(x => CalculateGarbage(x));
+                            if (g < min || min == -1)
                             {
-                                continue;
-                            }
-                            var next = JoinRecursive(max, [..chs[..i], tl, taken, rest, ..chs[(i + 2)..]], i + 2, false);
-                            if (next.Length <= chs.Length)
-                            {
-                                pq2.Enqueue((next, false), CalculateHeightWithGarbage(max, next));
+                                min = g;
+                                prefer = next;
                             }
                         }
-                        if (!ExcessLimit(max, jr))
+                    }
+                    if (!ExcessLimit(maxLimit, joinRight))
+                    {
+                        var newChunks = InjectChunks(chunks, index, out _, trimLeft, joinRight);
+                        var g = newChunks.Sum(x => CalculateGarbage(x));
+                        if (g < min || min == -1)
                         {
-                            int[][] join = tl.Length == 0 ? [jr] : [tl, [..jr]];
-                            int[][] k = [..chs[..i], ..join, ..chs[(i + 2)..]];
-                            pq2.Enqueue((k, true), CalculateHeightWithGarbage(max, k));
+                            min = g;
+                            prefer = newChunks;
                         }
                     }
                 }
-                if (pq2.Count != 0)
-                {
-                    (chs, var inline) = pq2.Dequeue();
-                    if (inline)
-                    {
-                        i++;
-                    }
-                }
+                chunks = prefer;
             }
-            i++;
+            else
+            {
+                return chunks;
+            }
+            index++;
         }
-        return chs;
+        return chunks;
+    }
+
+    private static int[][] InjectChunks(int[][] source, int index, out int startIndex, params int[][] chunks)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(chunks.Length, 2);
+        
+        startIndex = index + Math.Max(2, chunks.Length - 1);
+        return [..source[..index], ..chunks.Where(x => x.Length != 0), ..source[startIndex..]];
     }
     
-    private static int CalculateHeightWithGarbage(int max, int[][] chunks) => (int)Math.Pow(10, (int)Math.Floor(Math.Log10(max)) + 1) + chunks.Sum(CalculateGarbage);
-    
-    private static bool ExcessLimit(int max, int[] ch, out int[] taken, out int[] rest)
+    private static bool ExcessLimit(int maxLimit, ReadOnlySpan<int> chunk, out int[] taken, out int[] rest)
     {
-        ArgumentOutOfRangeException.ThrowIfZero(ch.Length);
-        if (ExcessLimit(max, ch))
+        ArgumentOutOfRangeException.ThrowIfZero(chunk.Length);
+        
+        if (ExcessLimit(maxLimit, chunk))
         {
-            var i = ch.Length - 1;
-            while (i >= 0)
+            var index = chunk.Length - 1;
+            while (index >= 0)
             {
-                if (!ExcessLimit(max, ch[..i]))
+                if (!ExcessLimit(maxLimit, chunk[..index]))
                 {
                     break;
                 }
-                i--;
+                index--;
             }
-            rest = ch[i..];
-            taken = ch[..i];
+            rest = chunk[index..].ToArray();
+            taken = chunk[..index].ToArray();
             return true;
         }
         rest = [];
-        taken = ch;
+        taken = chunk.ToArray();
         return false;
     }
     
-    private static bool ExcessLimit(int max, int[] chunk) => chunk[^1] - chunk[0] + 1 > max;
+    private static bool ExcessLimit(int maxLimit, ReadOnlySpan<int> chunk) => chunk[^1] - chunk[0] + 1 > maxLimit;
     
-    private static int CalculateGarbage(int[] chunk)
+    private static int CalculateGarbage(ReadOnlySpan<int> chunk1, ReadOnlySpan<int> chunk2) => chunk1.Length == 0 ? CalculateGarbage(chunk2) : CalculateGarbage(chunk1) + CalculateGarbage(chunk2);
+    private static int CalculateGarbage(ReadOnlySpan<int> chunk)
     {
-        if (chunk.Length == 0)
+        ArgumentOutOfRangeException.ThrowIfZero(chunk.Length);
+        
+        var index = 0;
+        var garbage = 0;
+        var previous = chunk[0];
+        while (index < chunk.Length)
         {
-            return 0;
+            var current = chunk[index];
+            garbage += Math.Max(0, current - previous - 1);
+            previous = current;
+            index++;
         }
-        var i = 0;
-        var g = 0;
-        var prev = chunk[0];
-        while (i < chunk.Length)
-        {
-            var cur = chunk[i];
-            g += Math.Max(0, cur - prev - 1);
-            prev = cur;
-            i++;
-        }
-        return g;
+        return garbage;
     }
     
-    private static IEnumerable<(int[] TrimLeft, int[] JoinRight, int Garbage)> Combine(int g, int[] ch1, int[] ch2)
+    private static (int[] TrimLeft, int[] JoinRight)[] CombineWithLowerGarbageThanSource(ReadOnlySpan<int> chunk1, ReadOnlySpan<int> chunk2)
     {
-        var arr = ch1.Concat(ch2).ToArray();
-        for (var splitPoint = ch1.Length - 1; splitPoint >= 0; splitPoint--)
+        List<(int[] TrimLeft, int[] JoinRight)> res = [];
+        var min = -1;
+        var maxGarbage = CalculateGarbage(chunk1, chunk2);
+        ReadOnlySpan<int> concat = [..chunk1, ..chunk2];
+        for (var splitPoint = chunk1.Length - 1; splitPoint >= 0; splitPoint--)
         {
-            var trimLeft = arr.Take(splitPoint).ToArray();
-            var joinRight = arr.Skip(splitPoint).ToArray();
-            var garbage = CalculateGarbage(trimLeft) + CalculateGarbage(joinRight); 
-            if (garbage < g || trimLeft.Length == 0)
+            var trimLeft = concat[..splitPoint];
+            var joinRight = concat[splitPoint..];
+            var garbage = CalculateGarbage(trimLeft, joinRight);
+            if (garbage < maxGarbage || trimLeft.Length == 0)
             {
-                yield return (trimLeft, joinRight, garbage);
+                if (min == -1)
+                {
+                    min = garbage;
+                    res.Add((trimLeft.ToArray(), joinRight.ToArray()));
+                }
+                if (garbage < min)
+                {
+                    min = garbage;
+                    res.Add((trimLeft.ToArray(), joinRight.ToArray()));
+                }
             }
         }
+        return res.ToArray();
     }
     
-    private static IEnumerable<int[]> Chunk(int max, int[] regs)
+    private static IEnumerable<int[]> Chunk(int maxLimit, int[] registers)
     {
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(max);
-        ArgumentOutOfRangeException.ThrowIfZero(regs.Length);
-        var i = 0;
-        var j = 0;
-        var l = 1;
-        var prev = regs[0];
-        while (i < regs.Length)
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxLimit);
+        ArgumentOutOfRangeException.ThrowIfZero(registers.Length);
+        
+        var index = 0;
+        var previous = registers[0];
+        var chunkStart = 0;
+        var currentLimit = 1;
+        while (index < registers.Length)
         {
-            var cur = regs[i];
-            var d = cur - prev;
-            l += d;
-            if (l > max)
+            var current = registers[index];
+            var distance = current - previous;
+            currentLimit += distance;
+            if (currentLimit > maxLimit)
             {
-                yield return regs[j..i];
-                l = 1;
-                j = i;
+                yield return registers[chunkStart..index];
+                currentLimit = 1;
+                chunkStart = index;
             }
-            prev = cur;
-            i++;
+            previous = current;
+            index++;
         }
-        if (l != 0)
+        if (currentLimit != 0)
         {
-            yield return regs[j..i];
+            yield return registers[chunkStart..index];
         }
     }
 }
