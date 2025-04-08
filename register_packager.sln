@@ -1,6 +1,8 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "register_packager", "register_packager.csproj", "{D833E2EF-B6F0-449A-9AB5-AB27BA259994}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "register_packager\register_packager", "register_packager\register_packager.csproj", "{D833E2EF-B6F0-449A-9AB5-AB27BA259994}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "register_packager\register_packager_benchmarks", "register_packager_benchmarks\register_packager_benchmarks.csproj", "{4A74D86E-772B-469F-A506-AAB167759DA2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -12,5 +14,9 @@ Global
 		{D833E2EF-B6F0-449A-9AB5-AB27BA259994}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D833E2EF-B6F0-449A-9AB5-AB27BA259994}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D833E2EF-B6F0-449A-9AB5-AB27BA259994}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4A74D86E-772B-469F-A506-AAB167759DA2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4A74D86E-772B-469F-A506-AAB167759DA2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4A74D86E-772B-469F-A506-AAB167759DA2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4A74D86E-772B-469F-A506-AAB167759DA2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

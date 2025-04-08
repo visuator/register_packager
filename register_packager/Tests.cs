@@ -13,6 +13,8 @@ public class Fixture
     {
         var result = Algorithm.Solve(maxLimit, registers);
         var greedy = Chunk(maxLimit, registers).ToArray();
+        _testOutputHelper.WriteLine($"[{string.Join(", ", registers)}]");
+        _testOutputHelper.WriteLine(string.Empty);
         _testOutputHelper.WriteLine($"[{string.Join(", ", greedy.Select(x => $"[{string.Join(", ", x)}]"))}] -> [Chunks: {greedy.Length}, Garbage: {greedy.Sum(CalculateGarbage)}]");
         _testOutputHelper.WriteLine(string.Empty);
         _testOutputHelper.WriteLine($"[{string.Join(", ", result.Select(x => $"[{string.Join(", ", x)}]"))}] -> [Chunks: {result.Length}, Garbage: {result.Sum(CalculateGarbage)}]");

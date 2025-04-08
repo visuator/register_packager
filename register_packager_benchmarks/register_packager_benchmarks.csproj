@@ -8,10 +8,11 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="AwesomeAssertions" Version="8.1.0" />
       <PackageReference Include="BenchmarkDotNet" Version="0.14.0" />
-      <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.13.0" />
-      <PackageReference Include="xunit" Version="2.9.3" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\register_packager\register_packager.csproj" />
     </ItemGroup>
 
 </Project>
