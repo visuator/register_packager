@@ -6,13 +6,7 @@ public class Algorithm
     {
         return JoinRecursive(max, Chunk(max, regs).ToArray(), 0, true).Where(x => x.Length != 0).ToArray();
     }
-    /*
-     * поделить greedy на чанки
-     * для каждой пары (n, n+1) через функцию f найти такое сочетание регистров, что мусор будет минимальным и левая часть будет < lim
-     * оставить левую часть без изменений, для правой части, если она больше lim, то попытаться вместить те регистры, убрав которые lim(правой части) <= lim. эти регистры попытаться вместить
-     * в следующий n + 2 чанк. если они вместились при lim(chunk) <= lim, то сохранить результат, в противном случае повторять процесс.
-     * так делать до тех пор, пока не закончатся доступные варианты
-     */
+
     private static int[][] JoinRecursive(int max, int[][] chs, int i, bool canCreate)
     {
         ArgumentOutOfRangeException.ThrowIfZero(chs.Length);
@@ -55,6 +49,7 @@ public class Algorithm
         }
         return chs;
     }
+    
     public static bool ExcessLimit(int max, int[] ch, out int[] taken, out int[] rest)
     {
         ArgumentOutOfRangeException.ThrowIfZero(ch.Length);
@@ -77,7 +72,9 @@ public class Algorithm
         taken = ch;
         return false;
     }
+    
     public static bool ExcessLimit(int max, int[] chunk) => chunk[^1] - chunk[0] + 1 > max;
+    
     public static int CalculateGarbage(int[] chunk)
     {
         if (chunk.Length == 0)
@@ -96,6 +93,7 @@ public class Algorithm
         }
         return g;
     }
+    
     public static IEnumerable<(int[] TrimLeft, int[] JoinRight)> Combine(int[] ch1, int[] ch2)
     {
         var arr = ch1.Concat(ch2).ToArray();
@@ -106,6 +104,7 @@ public class Algorithm
             yield return (trimLeft, joinRight);
         }
     }
+    
     public static IEnumerable<int[]> Chunk(int max, int[] regs)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(max);
