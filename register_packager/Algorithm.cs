@@ -4,10 +4,14 @@ public class Algorithm
 {
     public static int[][] Solve(int maxLimit, int[] registers)
     {
-        var node = JoinRecursive(maxLimit, Chunk(maxLimit, registers).Next!, false);
+        var root = Chunk(maxLimit, registers).Next;
+        ArgumentNullException.ThrowIfNull(root);
+        var node = JoinRecursive(maxLimit, GetNumberWithZeros(maxLimit), root, false);
         return GetChunks(node).ToArray();
     }
 
+    private static int GetNumberWithZeros(int x) => (int)Math.Pow(10, (int)Math.Floor(Math.Log10(x)) + 1);
+    
     private static IEnumerable<int[]> GetChunks(Node node)
     {
         var current = node;
@@ -27,7 +31,7 @@ public class Algorithm
         public Node? Next { get; set; }
     }
     
-    private static Node JoinRecursive(int maxLimit, Node root, bool rearrange)
+    private static Node JoinRecursive(int maxLimit, int decimalOrderMaxLimit, Node root, bool rearrange)
     {
         var node = root;
         while (node is not null)
@@ -41,7 +45,9 @@ public class Algorithm
                     node = node.Next;
                     continue;
                 }
-                var min = CalculateGarbage(current, follow) + CalculateGarbage(node.Next!.Next!) + GetNumberWithZeros(maxLimit) * CalculateHeight(node.Next!.Next!);
+                var heightRest = CalculateHeight(node.Next.Next);
+                var garbageRest = CalculateGarbage(node.Next.Next);
+                var min = CalculateGarbage(current, follow) + garbageRest + decimalOrderMaxLimit * heightRest;
                 var prefer = node;
                 foreach (var (trimLeft, joinRight) in CombineWithLowerGarbageThanSource(current, follow))
                 {
@@ -51,25 +57,24 @@ public class Algorithm
                         {
                             continue;
                         }
-                        var n = CreateNodeWithoutEmptyRegisters([], rest, node.Next!.Next!);
-                        var next = JoinRecursive(maxLimit, n, true);
-                        if (CalculateHeight(next) <= CalculateHeight(node.Next!.Next!))
+                        var next = JoinRecursive(maxLimit, decimalOrderMaxLimit, CreateNodeWithoutEmptyRegisters([], rest, node.Next.Next), true);
+                        if (CalculateHeight(next) <= CalculateHeight(node.Next.Next))
                         {
-                            var g = CalculateGarbage(trimLeft, taken) + CalculateGarbage(next) + GetNumberWithZeros(maxLimit) * CalculateHeight(next);
-                            if (g < min)
+                            var garbage = CalculateGarbage(trimLeft, taken) + CalculateGarbage(next) + decimalOrderMaxLimit * CalculateHeight(next);
+                            if (garbage < min)
                             {
-                                min = g;
+                                min = garbage;
                                 prefer = CreateNodeWithoutEmptyRegisters(trimLeft, taken, next);
                             }   
                         }
                     }
                     if (!ExcessLimit(maxLimit, joinRight))
                     {
-                        var g = CalculateGarbage(trimLeft, joinRight) + CalculateGarbage(node.Next!.Next!) + GetNumberWithZeros(maxLimit) * (CalculateHeight(node.Next!.Next!) - (trimLeft.Length == 0 ? 1 : 0));
-                        if (g < min)
+                        var garbage = CalculateGarbage(trimLeft, joinRight) + garbageRest + decimalOrderMaxLimit * (heightRest - (trimLeft.Length == 0 ? 1 : 0));
+                        if (garbage < min)
                         {
-                            min = g;
-                            prefer = CreateNodeWithoutEmptyRegisters(trimLeft, joinRight, node.Next!.Next!);
+                            min = garbage;
+                            prefer = CreateNodeWithoutEmptyRegisters(trimLeft, joinRight, node.Next.Next);
                         }
                     }
                 }
@@ -84,17 +89,15 @@ public class Algorithm
         }
         return root;
     }
-
-    private static int GetNumberWithZeros(int x) => (int)Math.Pow(10, (int)Math.Floor(Math.Log10(x)) + 1);
     
-    private static Node CreateNodeWithoutEmptyRegisters(int[] left, int[] right, Node otherPart)
+    private static Node CreateNodeWithoutEmptyRegisters(int[] left, int[] right, Node? rest)
     {
         if (left.Length == 0)
         {
             return new Node()
             {
                 Registers = right,
-                Next = otherPart
+                Next = rest
             };
         }
         if (right.Length == 0)
@@ -102,7 +105,7 @@ public class Algorithm
             return new Node()
             {
                 Registers = left,
-                Next = otherPart
+                Next = rest
             };
         }
         return new Node()
@@ -111,7 +114,7 @@ public class Algorithm
             Next = new Node()
             {
                 Registers = right,
-                Next = otherPart
+                Next = rest
             }
         };
     }
@@ -144,30 +147,30 @@ public class Algorithm
     
     private static int CalculateGarbage(ReadOnlySpan<int> chunk1, ReadOnlySpan<int> chunk2) => chunk1.Length == 0 ? CalculateGarbage(chunk2) : CalculateGarbage(chunk1) + CalculateGarbage(chunk2);
 
-    private static int CalculateHeight(Node node)
+    private static int CalculateHeight(Node? node)
     {
-        var i = 1;
+        var height = 0;
         var current = node;
         while (current is not null)
         {
             if (current.Registers.Length != 0)
             {
-                i++;
+                height++;
             }
             current = current.Next;
         }
-        return i;
+        return height;
     }
-    private static int CalculateGarbage(Node node)
+    private static int CalculateGarbage(Node? node)
     {
-        var i = 0;
+        var garbage = 0;
         var current = node;
         while (current is not null)
         {
-            i += CalculateGarbage(current.Registers);
+            garbage += CalculateGarbage(current.Registers);
             current = current.Next;
         }
-        return i;
+        return garbage;
     }
     private static int CalculateGarbage(ReadOnlySpan<int> chunk)
     {
@@ -189,26 +192,17 @@ public class Algorithm
     private static (int[] TrimLeft, int[] JoinRight)[] CombineWithLowerGarbageThanSource(ReadOnlySpan<int> chunk1, ReadOnlySpan<int> chunk2)
     {
         List<(int[] TrimLeft, int[] JoinRight)> res = [];
-        var min = -1;
-        var maxGarbage = CalculateGarbage(chunk1, chunk2);
+        var min = CalculateGarbage(chunk1, chunk2);
         ReadOnlySpan<int> concat = [..chunk1, ..chunk2];
         for (var splitPoint = chunk1.Length - 1; splitPoint >= 0; splitPoint--)
         {
             var trimLeft = concat[..splitPoint];
             var joinRight = concat[splitPoint..];
             var garbage = CalculateGarbage(trimLeft, joinRight);
-            if (garbage < maxGarbage || trimLeft.Length == 0)
+            if (garbage < min || trimLeft.Length == 0)
             {
-                if (min == -1)
-                {
-                    min = garbage;
-                    res.Add((trimLeft.ToArray(), joinRight.ToArray()));
-                }
-                if (garbage < min)
-                {
-                    min = garbage;
-                    res.Add((trimLeft.ToArray(), joinRight.ToArray()));
-                }
+                min = garbage;
+                res.Add((trimLeft.ToArray(), joinRight.ToArray()));
             }
         }
         return res.ToArray();
