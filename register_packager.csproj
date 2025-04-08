@@ -13,10 +13,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Entities\" />
-    </ItemGroup>
-
-    <ItemGroup>
       <Compile Remove="Entities\RegisterPair.cs" />
     </ItemGroup>
 
