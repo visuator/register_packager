@@ -1,96 +1,176 @@
 ﻿using System.Security.Cryptography;
+using FluentAssertions;
 using Xunit;
 using Xunit.Abstractions;
 
 namespace register_packager;
 
-public class Tests(ITestOutputHelper testOutputHelper)
+public class Fixture
 {
-    [Theory]
-    [InlineData(8,  8, 9, 12)]
-    [InlineData(5,  2, 3, 4, 5, 6)]
-    [InlineData(17,  1, 10, 25)]
-    [InlineData(12,  1, 10, 25)]
-    [InlineData(26,  1, 25, 45)]
-    [InlineData(5,  1, 4, 5, 8, 9, 44)]
-    [InlineData(4,  1, 4, 5, 8, 9, 44)]
-    [InlineData(10,  1, 10)]
-    public void Sample1(int maxLimit, params int[] registers)
+    private ITestOutputHelper _testOutputHelper = null!;
+    public void Inject(ITestOutputHelper testOutputHelper) => _testOutputHelper = testOutputHelper;
+    public int[][] Run(int maxLimit, int[] registers)
     {
-        var o = Algorithm.Solve(maxLimit, registers);
-        testOutputHelper.WriteLine($"[{string.Join(", ", o.Select(x => $"[{string.Join(", ", x)}]"))}]");
+        var result = Algorithm.Solve(maxLimit, registers);
+        _testOutputHelper.WriteLine($"[{string.Join(", ", result.Select(x => $"[{string.Join(", ", x)}]"))}] -> [Chunks: {result.Length}, Garbage: {result.Sum(CalculateGarbage)}]");
+        DefaultAsserts(maxLimit, registers, result);
+        return result;
     }
+    private static void DefaultAsserts(int maxLimit, int[] registers, int[][] chunks)
+    {
+        chunks.Should().NotBeEmpty();
+        chunks.SelectMany(x => x).Should().BeEquivalentTo(registers);
+        chunks.Should().AllSatisfy(x => ExcessLimit(maxLimit, x).Should().BeFalse());
+
+        var greedyChunks = Chunk(maxLimit, registers).ToArray();
+        chunks.Should().HaveCountLessThanOrEqualTo(greedyChunks.Length);
+        chunks.Sum(CalculateGarbage).Should().BeLessThanOrEqualTo(greedyChunks.Sum(CalculateGarbage));
+    }
+    private static bool ExcessLimit(int maxLimit, int[] chunk) => chunk[^1] - chunk[0] + 1 > maxLimit;
+    private static int CalculateGarbage(int[] chunk)
+    {
+        if (chunk.Length == 0)
+        {
+            return 0;
+        }
+        var i = 0;
+        var g = 0;
+        var prev = chunk[0];
+        while (i < chunk.Length)
+        {
+            var cur = chunk[i];
+            g += Math.Max(0, cur - prev - 1);
+            prev = cur;
+            i++;
+        }
+        return g;
+    }
+    private static IEnumerable<int[]> Chunk(int maxLimit, int[] registers)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxLimit);
+        ArgumentOutOfRangeException.ThrowIfZero(registers.Length);
+        var i = 0;
+        var j = 0;
+        var l = 1;
+        var prev = registers[0];
+        while (i < registers.Length)
+        {
+            var cur = registers[i];
+            var d = cur - prev;
+            l += d;
+            if (l > maxLimit)
+            {
+                yield return registers[j..i];
+                l = 1;
+                j = i;
+            }
+            prev = cur;
+            i++;
+        }
+        if (l != 0)
+        {
+            yield return registers[j..i];
+        }
+    }
+}
+public class Tests : IClassFixture<Fixture>
+{
+    private readonly Fixture _fixture;
+    public Tests(ITestOutputHelper testOutputHelper, Fixture fixture)
+    {
+        _fixture = fixture;
+        _fixture.Inject(testOutputHelper);
+    }
+    
     [Fact]
-    public void Sample2()
+    public void Should_Pack_Two_Registers_Into_One_Package()
     {
-        const int max = 4;
-        int[][] reg = [[2, 3, 4], [6, 8, 9], [10, 11, 12]];
-        var chunks = Algorithm.Chunk(max, reg.SelectMany(x => x).ToArray()).ToArray();
-        testOutputHelper.WriteLine($"{string.Join(", ", chunks.Select(x => $"[{string.Join(", ", x)}]"))} -> [Chunks = {chunks.Length} Garbage = {chunks.Sum(Algorithm.CalculateGarbage)}]");
-        var o = Algorithm.Solve(max, reg.SelectMany(x => x).ToArray()).ToArray();
-        testOutputHelper.WriteLine($"{string.Join(", ", o.Select(x => $"[{string.Join(", ", x)}]"))} -> [Chunks = {o.Length} Garbage = {o.Sum(Algorithm.CalculateGarbage)}]");
-        Assert.Equal(reg.SelectMany(x => x), o.SelectMany(x => x));
-        Assert.True(o.Length <= chunks.Length);
-        Assert.All(o, x => Assert.False(Algorithm.ExcessLimit(max, x, out _, out _)));
-        Assert.True(o.Sum(Algorithm.CalculateGarbage) <= chunks.Sum(Algorithm.CalculateGarbage));
+        const int maxLimit = 10;
+        int[] registers = [1, 10];
+
+        var result = _fixture.Run(maxLimit, registers);
+        result.Should().BeEquivalentTo((int[][]) [[1, 10]], "limit not exceeded");
     }
-    [Theory]
-    [InlineData(4, 15)]
-    [InlineData(4, 100_00)]
-    [InlineData(256, 10_000)]
-    [InlineData(1024, 16_384)]
-    [InlineData(256, 100_000)]
-    public void SampleMax(int max, int count)
+    
+    [Fact]
+    public void Should_Pack_Two_Registers_Into_Two_Package()
     {
-        var reg = Enumerable.Range(0, count)
+        const int maxLimit = 5;
+        int[] registers = [1, 10];
+
+        var result = _fixture.Run(maxLimit, registers);
+        result.Should().BeEquivalentTo((int[][]) [[1], [10]], "limit exceeded");
+    }
+    
+    [Fact]
+    public void Should_Choose_The_Best_Combination_With_Less_Garbage_1()
+    {
+        const int maxLimit = 15;
+        int[] registers = [1, 15, 20];
+
+        var result = _fixture.Run(maxLimit, registers);
+        result.Should().BeEquivalentTo((int[][]) [[1], [15, 20]], "20 - 15 < 15 - 1");
+    }
+    
+    [Fact]
+    public void Should_Choose_The_Best_Combination_With_Less_Garbage_2()
+    {
+        const int maxLimit = 25;
+        int[] registers = [1, 25, 45];
+
+        var result = _fixture.Run(maxLimit, registers);
+        result.Should().BeEquivalentTo((int[][]) [[1], [25, 45]], "45 - 25 < 25 - 1");
+    }
+    
+    [Fact]
+    public void Should_Choose_The_Best_Combination_With_Less_Garbage_3()
+    {
+        const int maxLimit = 5;
+        int[] registers = [1, 4, 5, 8, 9, 40];
+
+        var result = _fixture.Run(maxLimit, registers);
+        result.Should().BeEquivalentTo((int[][]) [[1, 4, 5], [8, 9], [40]], "[[1, 4, 5], [8, 9] [40]] is optimal solution");
+    }
+    
+    [Fact]
+    public void Should_Join_Chunks_If_Possible_1()
+    {
+        const int maxLimit = 4;
+        int[] registers = [1, 4, 5, 8, 9, 40];
+
+        var result = _fixture.Run(maxLimit, registers);
+        result.Should().BeEquivalentTo((int[][]) [[1], [4, 5], [8, 9], [40]], "[[1], [4, 5], [8, 9] [40]] is optimal solution");
+    }
+    
+    [Fact]
+    public void Should_Join_Chunks_If_Possible_2()
+    {
+        const int maxLimit = 6;
+        int[] registers = [1, 2, 3, 4, 5, 6];
+
+        var result = _fixture.Run(maxLimit, registers);
+        result.Should().BeEquivalentTo((int[][]) [[1, 2, 3, 4, 5, 6]], "[[1, 2, 3, 4, 5, 6]] is optimal solution");
+    }
+    
+    [Fact]
+    public void Should_Join_Chunks_If_Possible_3()
+    {
+        const int maxLimit = 25;
+        int[] registers = [1, 15, 25];
+
+        var result = _fixture.Run(maxLimit, registers);
+        result.Should().BeEquivalentTo((int[][]) [[1, 15, 25]], "[[1, 15, 25]] is optimal solution");
+    }
+
+    [Theory]
+    [InlineData(256, 16384)]
+    public void Should_Handle_Large_Amount_Of_Registers_Better_Than_Straightforward_Greedy(int maxLimit, int count)
+    {
+        var registers = Enumerable.Range(0, count)
             .Select(x => RandomNumberGenerator.GetInt32(0, 100_000))
             .Distinct()
             .OrderBy(x => x)
             .ToArray();
-        var chunks = Algorithm.Chunk(max, reg).ToArray();
-        testOutputHelper.WriteLine($"{string.Join(", ", chunks.Select(x => $"[{string.Join(", ", x)}]"))} -> [Chunks = {chunks.Length} Garbage = {chunks.Sum(Algorithm.CalculateGarbage)}]");
-        var o = Algorithm.Solve(max, reg).ToArray();
-        testOutputHelper.WriteLine($"{string.Join(", ", o.Select(x => $"[{string.Join(", ", x)}]"))} -> [Chunks = {o.Length} Garbage = {o.Sum(Algorithm.CalculateGarbage)}]");
-        Assert.Equal(reg, o.SelectMany(x => x));
-        Assert.All(o, x => Assert.False(Algorithm.ExcessLimit(max, x, out _, out _)));
-        Assert.True(o.Length <= chunks.Length);
-        Assert.True(o.Sum(Algorithm.CalculateGarbage) <= chunks.Sum(Algorithm.CalculateGarbage));
-    }
-    [Theory]
-    [InlineData(13, 1, 3, 5, 9, 10, 11, 13)]
-    [InlineData(4, 1, 3, 5, 9, 10, 11, 13)]
-    [InlineData(1, 1, 3, 5, 9, 10, 11, 13)]
-    [InlineData(8,  8, 9, 12)]
-    [InlineData(5,  2, 3, 4, 5, 6)]
-    [InlineData(17,  1, 10, 25)]
-    [InlineData(12,  1, 10, 25)]
-    [InlineData(26,  1, 25, 45)]
-    [InlineData(5,  1, 4, 5, 8, 9, 44)]
-    [InlineData(4,  1, 4, 5, 8, 9, 44)]
-    [InlineData(10,  1, 10)]
-    public void Chunk(int maxLimit, params int[] registers)
-    {
-        var variation = Algorithm.Chunk(maxLimit, registers).ToArray();
-        testOutputHelper.WriteLine(string.Join(", ", variation.Select(x => $"[{string.Join(", ", x)}]")));
-    }
-    [Fact]
-    public void Combine()
-    {
-        int[] ch1 = [1, 2, 3, 4, 5];
-        int[] ch2 = [6, 7, 8, 9, 10];
-        foreach (var (trimLeft, joinRight, _) in Algorithm.Combine(10, ch1, ch2))
-        {
-            testOutputHelper.WriteLine($"[{string.Join(", ", trimLeft)}], [{string.Join(", ", joinRight)}]");
-        }
-    }
-    [Fact]
-    public void Combine2()
-    {
-        int[] ch1 = [8];
-        int[] ch2 = [9];
-        foreach (var (trimLeft, joinRight, _) in Algorithm.Combine(10, ch1, ch2))
-        {
-            testOutputHelper.WriteLine($"[{string.Join(", ", trimLeft)}], [{string.Join(", ", joinRight)}]");
-        }
+        _fixture.Run(maxLimit, registers);
     }
 }

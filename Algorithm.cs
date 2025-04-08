@@ -63,11 +63,9 @@ public class Algorithm
         return chs;
     }
     
-    public static int CalculateHeightWithGarbage(int max, int[][] chunks) => GetNumberWithZeros(max) + chunks.Sum(CalculateGarbage);
+    private static int CalculateHeightWithGarbage(int max, int[][] chunks) => (int)Math.Pow(10, (int)Math.Floor(Math.Log10(max)) + 1) + chunks.Sum(CalculateGarbage);
     
-    private static int GetNumberWithZeros(int x) => (int)Math.Pow(10, (int)Math.Floor(Math.Log10(x)) + 1);
-    
-    public static bool ExcessLimit(int max, int[] ch, out int[] taken, out int[] rest)
+    private static bool ExcessLimit(int max, int[] ch, out int[] taken, out int[] rest)
     {
         ArgumentOutOfRangeException.ThrowIfZero(ch.Length);
         if (ExcessLimit(max, ch))
@@ -90,9 +88,9 @@ public class Algorithm
         return false;
     }
     
-    public static bool ExcessLimit(int max, int[] chunk) => chunk[^1] - chunk[0] + 1 > max;
+    private static bool ExcessLimit(int max, int[] chunk) => chunk[^1] - chunk[0] + 1 > max;
     
-    public static int CalculateGarbage(int[] chunk)
+    private static int CalculateGarbage(int[] chunk)
     {
         if (chunk.Length == 0)
         {
@@ -111,7 +109,7 @@ public class Algorithm
         return g;
     }
     
-    public static IEnumerable<(int[] TrimLeft, int[] JoinRight, int Garbage)> Combine(int g, int[] ch1, int[] ch2)
+    private static IEnumerable<(int[] TrimLeft, int[] JoinRight, int Garbage)> Combine(int g, int[] ch1, int[] ch2)
     {
         var arr = ch1.Concat(ch2).ToArray();
         for (var splitPoint = ch1.Length - 1; splitPoint >= 0; splitPoint--)
@@ -126,7 +124,7 @@ public class Algorithm
         }
     }
     
-    public static IEnumerable<int[]> Chunk(int max, int[] regs)
+    private static IEnumerable<int[]> Chunk(int max, int[] regs)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(max);
         ArgumentOutOfRangeException.ThrowIfZero(regs.Length);
