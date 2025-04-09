@@ -1,4 +1,10 @@
-﻿namespace register_packager;
+﻿using System.Numerics;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.X86;
+
+namespace register_packager;
 
 public class Algorithm
 {
@@ -207,16 +213,25 @@ public class Algorithm
     
     private static int CalculateGarbage(ReadOnlySpan<int> chunk)
     {
-        ArgumentOutOfRangeException.ThrowIfZero(chunk.Length);
-
-        var garbage = 0;
-        var index = 1;
-        while (index < chunk.Length)
+        ref var pv = ref MemoryMarshal.GetReference(chunk);
+        nint length = chunk.Length;
+        nint i = 0;
+        nint bound512 = length & ~(Vector256<int>.Count * 2 - 1);
+        int res = 0;
+        for (; i < bound512; i += Vector256<int>.Count)
         {
-            garbage += chunk[index] - chunk[index - 1] - 1;
-            index++;
+            var vec1 =  Unsafe.As<int, Vector256<int>>(ref Unsafe.Add(ref pv, i + 1));
+            var vec2 = Unsafe.As<int, Vector256<int>>(ref Unsafe.Add(ref pv, i));
+            var vec3 = Vector256.Subtract(vec1, vec2);
+            var vec4 = Vector256.Subtract(vec3, Vector256<int>.One);
+            res += Vector256.Sum(vec4);
         }
-        return garbage;
+        i++;
+        for (; i < length; i++)
+        {
+            res += chunk[(int)i] - chunk[(int)(i - 1)] - 1;
+        }
+        return res;
     }
     
     private static (int[] TrimLeft, int[] JoinRight)[] CombineWithLowerGarbageThanSource(ReadOnlySpan<int> chunk1, ReadOnlySpan<int> chunk2)
