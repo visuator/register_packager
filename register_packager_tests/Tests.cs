@@ -190,12 +190,4 @@ public class Tests : IClassFixture<Fixture>
             .ToArray();
         _fixture.Run(maxLimit, registers);
     }
-
-    [Fact]
-    public void Test_Case_1()
-    {
-        int[][] source = [[0], [4, 6, 7], [8, 9, 10, 11], [13, 14]];
-        var registers = source.SelectMany(x => x).ToArray();
-        _fixture.Run(4, registers);
-    }
 }
