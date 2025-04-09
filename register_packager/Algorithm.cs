@@ -27,8 +27,78 @@ public class Algorithm
     
     public class Node
     {
-        public int[] Registers { get; set; } = [];
+        public Node? Previous { get; init; }
         public Node? Next { get; set; }
+        public int Depth { get; set; } = 1;
+        public int[] Registers { get; set; } = [];
+
+        public Node Prepend(int[] registers)
+        {
+            return new Node()
+            {
+                Next = this,
+                Depth = Depth + 1,
+                Registers = registers
+            };
+        }
+        
+        public static Node CreateChain(Node? rest, params int[][] chunks)
+        {
+            var node = rest;
+            for (var i = chunks.Length - 1; i >= 0; i--)
+            {
+                var registers = chunks[i];
+                if (registers.Length != 0)
+                {
+                    node = node is null ? new Node() { Registers = registers } : node.Prepend(registers);
+                }
+            }
+            //todo: fix
+            return node!;
+        }
+        
+        public void Replace(Node node)
+        {
+            Registers = node.Registers;
+            var diff = node.Depth - Depth;
+            Depth = node.Depth;
+            Next = node.Next;
+            if (diff != 0)
+            {
+                UpdateDepths(diff);   
+            }
+        }
+        
+        public Node Append(int[] registers)
+        {
+            var node = new Node() { Registers = registers, Previous = this };
+            Depth++;
+            Next = node;
+            UpdateDepths(1);
+            return node;
+        }
+        
+        public int CalculateGarbage()
+        {
+            var garbage = 0;
+            var current = this;
+            while (current is not null)
+            {
+                garbage += Algorithm.CalculateGarbage(current.Registers);
+                current = current.Next;
+            }
+            return garbage;
+        }
+        
+        private void UpdateDepths(int diff)
+        {
+            var cur = this;
+            while (cur.Previous != null)
+            {
+                cur = cur.Previous;
+                cur.Depth += diff;
+            }
+        }
     }
     
     private static Node JoinRecursive(int maxLimit, int decimalOrderMaxLimit, Node root, bool rearrange)
@@ -45,41 +115,40 @@ public class Algorithm
                     node = node.Next;
                     continue;
                 }
-                var heightRest = CalculateHeight(node.Next.Next);
-                var garbageRest = CalculateGarbage(node.Next.Next);
-                var min = CalculateGarbage(current, follow) + garbageRest + decimalOrderMaxLimit * heightRest;
+                var rest = node.Next.Next;
+
+                var min = CalculateHeightWithGarbage(decimalOrderMaxLimit, rest, current, follow);
                 var prefer = node;
                 foreach (var (trimLeft, joinRight) in CombineWithLowerGarbageThanSource(current, follow))
                 {
-                    if (trimLeft.Length != 0 && ExcessLimit(maxLimit, joinRight, out var taken, out var rest))
+                    if (trimLeft.Length != 0 && ExcessLimit(maxLimit, joinRight, out var takenRegisters, out var restRegisters))
                     {
                         if (rearrange)
                         {
                             continue;
                         }
-                        var next = JoinRecursive(maxLimit, decimalOrderMaxLimit, CreateNodeWithoutEmptyRegisters([], rest, node.Next.Next), true);
-                        if (CalculateHeight(next) <= CalculateHeight(node.Next.Next))
+                        var next = JoinRecursive(maxLimit, decimalOrderMaxLimit, Node.CreateChain(rest, restRegisters), true);
+                        if (next.Depth <= (rest?.Depth ?? 0))
                         {
-                            var garbage = CalculateGarbage(trimLeft, taken) + CalculateGarbage(next) + decimalOrderMaxLimit * CalculateHeight(next);
+                            var garbage = CalculateHeightWithGarbage(decimalOrderMaxLimit, next, trimLeft, takenRegisters);
                             if (garbage < min)
                             {
                                 min = garbage;
-                                prefer = CreateNodeWithoutEmptyRegisters(trimLeft, taken, next);
+                                prefer = Node.CreateChain(next, trimLeft, takenRegisters);
                             }   
                         }
                     }
                     if (!ExcessLimit(maxLimit, joinRight))
                     {
-                        var garbage = CalculateGarbage(trimLeft, joinRight) + garbageRest + decimalOrderMaxLimit * (heightRest - (trimLeft.Length == 0 ? 1 : 0));
+                        var garbage = CalculateHeightWithGarbage(decimalOrderMaxLimit, rest, trimLeft, joinRight);
                         if (garbage < min)
                         {
                             min = garbage;
-                            prefer = CreateNodeWithoutEmptyRegisters(trimLeft, joinRight, node.Next.Next);
+                            prefer = Node.CreateChain(rest, trimLeft, joinRight);
                         }
                     }
                 }
-                node.Registers = prefer.Registers;
-                node.Next = prefer.Next;
+                node.Replace(prefer);
             }
             else
             {
@@ -90,33 +159,22 @@ public class Algorithm
         return root;
     }
     
-    private static Node CreateNodeWithoutEmptyRegisters(int[] left, int[] right, Node? rest)
+    private static int CalculateHeightWithGarbage(int decimalOrderMaxLimit, Node? rest, params int[][] chunks)
     {
-        if (left.Length == 0)
+        var garbage = rest?.CalculateGarbage() ?? 0;
+        var depth = rest?.Depth ?? 0;
+        foreach (var registers in chunks)
         {
-            return new Node()
+            if (registers.Length != 0)
             {
-                Registers = right,
-                Next = rest
-            };
-        }
-        if (right.Length == 0)
-        {
-            return new Node()
-            {
-                Registers = left,
-                Next = rest
-            };
-        }
-        return new Node()
-        {
-            Registers = left,
-            Next = new Node()
-            {
-                Registers = right,
-                Next = rest
+                garbage += CalculateGarbage(registers);
             }
-        };
+            else
+            {
+                depth = Math.Max(0, --depth);
+            }
+        }
+        return garbage + decimalOrderMaxLimit * depth;
     }
     
     private static bool ExcessLimit(int maxLimit, ReadOnlySpan<int> chunk, out int[] taken, out int[] rest)
@@ -146,32 +204,7 @@ public class Algorithm
     private static bool ExcessLimit(int maxLimit, ReadOnlySpan<int> chunk) => chunk[^1] - chunk[0] + 1 > maxLimit;
     
     private static int CalculateGarbage(ReadOnlySpan<int> chunk1, ReadOnlySpan<int> chunk2) => chunk1.Length == 0 ? CalculateGarbage(chunk2) : CalculateGarbage(chunk1) + CalculateGarbage(chunk2);
-
-    private static int CalculateHeight(Node? node)
-    {
-        var height = 0;
-        var current = node;
-        while (current is not null)
-        {
-            if (current.Registers.Length != 0)
-            {
-                height++;
-            }
-            current = current.Next;
-        }
-        return height;
-    }
-    private static int CalculateGarbage(Node? node)
-    {
-        var garbage = 0;
-        var current = node;
-        while (current is not null)
-        {
-            garbage += CalculateGarbage(current.Registers);
-            current = current.Next;
-        }
-        return garbage;
-    }
+    
     private static int CalculateGarbage(ReadOnlySpan<int> chunk)
     {
         ArgumentOutOfRangeException.ThrowIfZero(chunk.Length);
@@ -209,7 +242,7 @@ public class Algorithm
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxLimit);
         ArgumentOutOfRangeException.ThrowIfZero(registers.Length);
-     
+
         var root = new Node();
         var chunkStart = 0;
         var currentLimit = 1;
@@ -221,20 +254,13 @@ public class Algorithm
             currentLimit += distance;
             if (currentLimit > maxLimit)
             {
-                node.Next = new Node()
-                {
-                    Registers = registers[chunkStart..index]
-                };
-                node = node.Next;
+                node = node.Append(registers[chunkStart..index]);
                 currentLimit = 1;
                 chunkStart = index;
             }
             index++;
         }
-        node.Next = new Node()
-        {
-            Registers = registers[chunkStart..index]
-        };
+        _ = node.Append(registers[chunkStart..index]);
         return root;
     }
 }
