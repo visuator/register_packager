@@ -9,9 +9,7 @@ public class Algorithm
         var node = JoinRecursive(maxLimit, GetNumberWithZeros(maxLimit), root, false);
         return GetChunks(node).ToArray();
     }
-
     private static int GetNumberWithZeros(int x) => (int)Math.Pow(10, (int)Math.Floor(Math.Log10(x)) + 1);
-    
     private static IEnumerable<int[]> GetChunks(Node node)
     {
         var current = node;
@@ -19,7 +17,7 @@ public class Algorithm
         {
             if (current.Registers.Length != 0)
             {
-                yield return current.Registers;   
+                yield return current.Registers;
             }
             current = current.Next;
         }
@@ -27,8 +25,73 @@ public class Algorithm
     
     public class Node
     {
-        public int[] Registers { get; set; } = [];
+        private Node(int[] registers)
+        {
+            Registers = registers;
+        }
+        public static Node CreateFictiveNode() => new([]);
+        public static Node Prepend(Node? tail, params int[][] chunks)
+        {
+            ArgumentOutOfRangeException.ThrowIfZero(chunks.Length);
+            
+            var node = tail;
+            for (var i = chunks.Length - 1; i >= 0; i--)
+            {
+                var registers = chunks[i];
+                if (registers.Length != 0)
+                {
+                    node = new Node(registers)
+                    {
+                        Next = node,
+                        Registers = registers
+                    };   
+                }
+            }
+            ArgumentNullException.ThrowIfNull(node);
+            
+            return node;
+        }
+        public int[] Registers { get; private set; }
         public Node? Next { get; set; }
+        public void Append(int[] registers)
+        {
+            var current = this;
+            while (current.Next is not null)
+            {
+                current = current.Next;
+            }
+            current.Next = new(registers);
+        }
+        public void Replace(Node node)
+        {
+            Registers = node.Registers;
+            Next = node.Next;
+        }
+        public int CalculateGarbageOfTail()
+        {
+            var garbage = 0;
+            var current = this;
+            while (current is not null)
+            {
+                garbage += CalculateGarbage(current.Registers);
+                current = current.Next;
+            }
+            return garbage;
+        }
+        public int CalculateDepth()
+        {
+            var height = 0;
+            var current = this;
+            while (current is not null)
+            {
+                if (current.Registers.Length != 0)
+                {
+                    height++;
+                }
+                current = current.Next;
+            }
+            return height;
+        }
     }
     
     private static Node JoinRecursive(int maxLimit, int decimalOrderMaxLimit, Node root, bool rearrange)
@@ -40,46 +103,43 @@ public class Algorithm
             if (node.Next is not null)
             {
                 var follow = node.Next.Registers;
-                if (follow.Length == 0)
+                if (follow.Length != 0)
                 {
-                    node = node.Next;
-                    continue;
-                }
-                var heightRest = CalculateHeight(node.Next.Next);
-                var garbageRest = CalculateGarbage(node.Next.Next);
-                var min = CalculateGarbage(current, follow) + garbageRest + decimalOrderMaxLimit * heightRest;
-                var prefer = node;
-                foreach (var (trimLeft, joinRight) in CombineWithLowerGarbageThanSource(current, follow))
-                {
-                    if (trimLeft.Length != 0 && ExcessLimit(maxLimit, joinRight, out var taken, out var rest))
+                    var tail = node.Next.Next;
+
+                    var minWeight = CalculateWeight(decimalOrderMaxLimit, tail, current, follow);
+                    var candidate = node;
+                    foreach (var (trimLeft, joinRight) in CalculateMinGarbageCombination(current, follow))
                     {
-                        if (rearrange)
+                        if (trimLeft.Length != 0 && ExcessLimit(maxLimit, joinRight, out var taken, out var rest))
                         {
-                            continue;
-                        }
-                        var next = JoinRecursive(maxLimit, decimalOrderMaxLimit, CreateNodeWithoutEmptyRegisters([], rest, node.Next.Next), true);
-                        if (CalculateHeight(next) <= CalculateHeight(node.Next.Next))
-                        {
-                            var garbage = CalculateGarbage(trimLeft, taken) + CalculateGarbage(next) + decimalOrderMaxLimit * CalculateHeight(next);
-                            if (garbage < min)
+                            if (rearrange)
                             {
-                                min = garbage;
-                                prefer = CreateNodeWithoutEmptyRegisters(trimLeft, taken, next);
-                            }   
+                                continue;
+                            }
+                            var next = JoinRecursive(maxLimit, decimalOrderMaxLimit, Node.Prepend(tail, rest), true);
+                            if (next.CalculateDepth() <= (tail?.CalculateDepth() ?? 0))
+                            {
+                                var weight = CalculateWeight(decimalOrderMaxLimit, next, trimLeft, taken);
+                                if (weight < minWeight)
+                                {
+                                    minWeight = weight;
+                                    candidate = Node.Prepend(next, trimLeft, taken);
+                                }
+                            }
                         }
-                    }
-                    if (!ExcessLimit(maxLimit, joinRight))
-                    {
-                        var garbage = CalculateGarbage(trimLeft, joinRight) + garbageRest + decimalOrderMaxLimit * (heightRest - (trimLeft.Length == 0 ? 1 : 0));
-                        if (garbage < min)
+                        if (!ExcessLimit(maxLimit, joinRight))
                         {
-                            min = garbage;
-                            prefer = CreateNodeWithoutEmptyRegisters(trimLeft, joinRight, node.Next.Next);
+                            var weight = CalculateWeight(decimalOrderMaxLimit, tail, trimLeft, joinRight);
+                            if (weight < minWeight)
+                            {
+                                minWeight = weight;
+                                candidate = Node.Prepend(tail, trimLeft, joinRight);
+                            }
                         }
                     }
+                    node.Replace(candidate);
                 }
-                node.Registers = prefer.Registers;
-                node.Next = prefer.Next;
             }
             else
             {
@@ -89,36 +149,8 @@ public class Algorithm
         }
         return root;
     }
-    
-    private static Node CreateNodeWithoutEmptyRegisters(int[] left, int[] right, Node? rest)
-    {
-        if (left.Length == 0)
-        {
-            return new Node()
-            {
-                Registers = right,
-                Next = rest
-            };
-        }
-        if (right.Length == 0)
-        {
-            return new Node()
-            {
-                Registers = left,
-                Next = rest
-            };
-        }
-        return new Node()
-        {
-            Registers = left,
-            Next = new Node()
-            {
-                Registers = right,
-                Next = rest
-            }
-        };
-    }
-    
+
+    private static bool ExcessLimit(int maxLimit, ReadOnlySpan<int> chunk) => chunk[^1] - chunk[0] + 1 > maxLimit;
     private static bool ExcessLimit(int maxLimit, ReadOnlySpan<int> chunk, out int[] taken, out int[] rest)
     {
         ArgumentOutOfRangeException.ThrowIfZero(chunk.Length);
@@ -143,35 +175,24 @@ public class Algorithm
         return false;
     }
     
-    private static bool ExcessLimit(int maxLimit, ReadOnlySpan<int> chunk) => chunk[^1] - chunk[0] + 1 > maxLimit;
-    
-    private static int CalculateGarbage(ReadOnlySpan<int> chunk1, ReadOnlySpan<int> chunk2) => chunk1.Length == 0 ? CalculateGarbage(chunk2) : CalculateGarbage(chunk1) + CalculateGarbage(chunk2);
-
-    private static int CalculateHeight(Node? node)
+    private static int CalculateWeight(int decimalOrderMaxLimit, Node? tail, params int[][] chunks)
     {
-        var height = 0;
-        var current = node;
-        while (current is not null)
+        var garbage = tail?.CalculateGarbageOfTail() ?? 0;
+        var depth = tail?.CalculateDepth() ?? 0;
+        foreach (var registers in chunks)
         {
-            if (current.Registers.Length != 0)
+            if (registers.Length != 0)
             {
-                height++;
+                garbage += CalculateGarbage(registers);
             }
-            current = current.Next;
+            else
+            {
+                depth = Math.Max(0, depth - 1);
+            }
         }
-        return height;
+        return garbage + decimalOrderMaxLimit * depth;
     }
-    private static int CalculateGarbage(Node? node)
-    {
-        var garbage = 0;
-        var current = node;
-        while (current is not null)
-        {
-            garbage += CalculateGarbage(current.Registers);
-            current = current.Next;
-        }
-        return garbage;
-    }
+    private static int CalculateGarbage(ReadOnlySpan<int> chunk1, ReadOnlySpan<int> chunk2) => chunk1.Length == 0 ? CalculateGarbage(chunk2) : CalculateGarbage(chunk1) + CalculateGarbage(chunk2);
     private static int CalculateGarbage(ReadOnlySpan<int> chunk)
     {
         ArgumentOutOfRangeException.ThrowIfZero(chunk.Length);
@@ -186,7 +207,7 @@ public class Algorithm
         return garbage;
     }
     
-    private static (int[] TrimLeft, int[] JoinRight)[] CombineWithLowerGarbageThanSource(ReadOnlySpan<int> chunk1, ReadOnlySpan<int> chunk2)
+    private static (int[] TrimLeft, int[] JoinRight)[] CalculateMinGarbageCombination(ReadOnlySpan<int> chunk1, ReadOnlySpan<int> chunk2)
     {
         List<(int[] TrimLeft, int[] JoinRight)> res = [];
         var min = CalculateGarbage(chunk1, chunk2);
@@ -209,32 +230,24 @@ public class Algorithm
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxLimit);
         ArgumentOutOfRangeException.ThrowIfZero(registers.Length);
-     
-        var root = new Node();
+
+        var root = Node.CreateFictiveNode();
         var chunkStart = 0;
         var currentLimit = 1;
         var index = 1;
-        var node = root;
         while (index < registers.Length)
         {
             var distance = registers[index] - registers[index - 1];
             currentLimit += distance;
             if (currentLimit > maxLimit)
             {
-                node.Next = new Node()
-                {
-                    Registers = registers[chunkStart..index]
-                };
-                node = node.Next;
+                root.Append(registers[chunkStart..index]);
                 currentLimit = 1;
                 chunkStart = index;
             }
             index++;
         }
-        node.Next = new Node()
-        {
-            Registers = registers[chunkStart..index]
-        };
+        root.Append(registers[chunkStart..index]);
         return root;
     }
 }
