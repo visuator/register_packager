@@ -6,33 +6,18 @@ namespace register_packager;
 
 public class Algorithm
 {
-    public static int[][] Solve(int maxLimit, int[] registers)
-    {
-        var root = Chunk(maxLimit, registers).Next;
-        ArgumentNullException.ThrowIfNull(root);
-        var node = JoinRecursive(maxLimit, GetNumberWithZeros(maxLimit), root, false);
-        return GetChunks(node).ToArray();
-    }
-    private static int GetNumberWithZeros(int x) => (int)Math.Pow(10, (int)Math.Floor(Math.Log10(x)) + 1);
-    private static IEnumerable<int[]> GetChunks(Node node)
-    {
-        private Node(int[] registers)
-        {
-            if (current.Registers.Length != 0)
-            {
-                yield return current.Registers;
-            }
-            current = current.Next;
-        }
-    }
+    public static int[][] Solve(int maxLimit, int[] registers) => JoinRecursive(maxLimit, GetNumberWithZeros(maxLimit), Chunk(maxLimit, registers), false).GetChunks().ToArray();
     
-    public class Node
+    private static int GetNumberWithZeros(int x) => (int)Math.Pow(10, (int)Math.Floor(Math.Log10(x)) + 1);
+    private class Node
     {
         private Node(int[] registers)
         {
             Registers = registers;
         }
+        
         public static Node CreateFictiveNode() => new([]);
+        
         public static Node Prepend(Node? tail, params int[][] chunks)
         {
             ArgumentOutOfRangeException.ThrowIfZero(chunks.Length);
@@ -54,8 +39,10 @@ public class Algorithm
             
             return node;
         }
+        
         public int[] Registers { get; private set; }
-        public Node? Next { get; set; }
+        public Node? Next { get; private set; }
+        
         public void Append(int[] registers)
         {
             var current = this;
@@ -65,11 +52,13 @@ public class Algorithm
             }
             current.Next = new(registers);
         }
+        
         public void Replace(Node node)
         {
             Registers = node.Registers;
             Next = node.Next;
         }
+        
         public int CalculateGarbageOfTail()
         {
             var garbage = 0;
@@ -81,6 +70,7 @@ public class Algorithm
             }
             return garbage;
         }
+        
         public int CalculateDepth()
         {
             var height = 0;
@@ -94,6 +84,19 @@ public class Algorithm
                 current = current.Next;
             }
             return height;
+        }
+        
+        public IEnumerable<int[]> GetChunks()
+        {
+            var current = this;
+            while (current is not null)
+            {
+                if (current.Registers.Length != 0)
+                {
+                    yield return current.Registers;
+                }
+                current = current.Next;
+            }
         }
     }
     
@@ -218,7 +221,6 @@ public class Algorithm
         }
         return res;
     }
-    
     private static (int[] TrimLeft, int[] JoinRight)[] CalculateMinGarbageCombination(ReadOnlySpan<int> chunk1, ReadOnlySpan<int> chunk2)
     {
         List<(int[] TrimLeft, int[] JoinRight)> res = [];
@@ -260,6 +262,8 @@ public class Algorithm
             index++;
         }
         root.Append(registers[chunkStart..index]);
-        return root;
+        ArgumentNullException.ThrowIfNull(root.Next);
+        
+        return root.Next;
     }
 }
