@@ -211,15 +211,13 @@ public class Algorithm
         ArgumentOutOfRangeException.ThrowIfZero(registers.Length);
      
         var root = new Node();
-        var index = 0;
-        var previous = registers[0];
         var chunkStart = 0;
         var currentLimit = 1;
+        var index = 1;
         var node = root;
         while (index < registers.Length)
         {
-            var current = registers[index];
-            var distance = current - previous;
+            var distance = registers[index] - registers[index - 1];
             currentLimit += distance;
             if (currentLimit > maxLimit)
             {
@@ -231,16 +229,12 @@ public class Algorithm
                 currentLimit = 1;
                 chunkStart = index;
             }
-            previous = current;
             index++;
         }
-        if (currentLimit != 0)
+        node.Next = new Node()
         {
-            node.Next = new Node()
-            {
-                Registers = registers[chunkStart..index]
-            };
-        }
+            Registers = registers[chunkStart..index]
+        };
         return root;
     }
 }
