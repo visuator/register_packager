@@ -175,15 +175,12 @@ public class Algorithm
     private static int CalculateGarbage(ReadOnlySpan<int> chunk)
     {
         ArgumentOutOfRangeException.ThrowIfZero(chunk.Length);
-        
-        var index = 0;
+
         var garbage = 0;
-        var previous = chunk[0];
+        var index = 1;
         while (index < chunk.Length)
         {
-            var current = chunk[index];
-            garbage += Math.Max(0, current - previous - 1);
-            previous = current;
+            garbage += chunk[index] - chunk[index - 1] - 1;
             index++;
         }
         return garbage;
