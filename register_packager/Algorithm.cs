@@ -1,4 +1,8 @@
-﻿namespace register_packager;
+﻿using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics;
+
+namespace register_packager;
 
 public class Algorithm
 {
@@ -12,8 +16,7 @@ public class Algorithm
     private static int GetNumberWithZeros(int x) => (int)Math.Pow(10, (int)Math.Floor(Math.Log10(x)) + 1);
     private static IEnumerable<int[]> GetChunks(Node node)
     {
-        var current = node;
-        while (current is not null)
+        private Node(int[] registers)
         {
             if (current.Registers.Length != 0)
             {
@@ -195,16 +198,25 @@ public class Algorithm
     private static int CalculateGarbage(ReadOnlySpan<int> chunk1, ReadOnlySpan<int> chunk2) => chunk1.Length == 0 ? CalculateGarbage(chunk2) : CalculateGarbage(chunk1) + CalculateGarbage(chunk2);
     private static int CalculateGarbage(ReadOnlySpan<int> chunk)
     {
-        ArgumentOutOfRangeException.ThrowIfZero(chunk.Length);
-
-        var garbage = 0;
-        var index = 1;
-        while (index < chunk.Length)
+        ref var pv = ref MemoryMarshal.GetReference(chunk);
+        nint length = chunk.Length;
+        nint i = 0;
+        nint bound512 = length & ~(Vector256<int>.Count * 2 - 1);
+        int res = 0;
+        for (; i < bound512; i += Vector256<int>.Count)
         {
-            garbage += chunk[index] - chunk[index - 1] - 1;
-            index++;
+            var vec1 =  Unsafe.As<int, Vector256<int>>(ref Unsafe.Add(ref pv, i + 1));
+            var vec2 = Unsafe.As<int, Vector256<int>>(ref Unsafe.Add(ref pv, i));
+            var vec3 = Vector256.Subtract(vec1, vec2);
+            var vec4 = Vector256.Subtract(vec3, Vector256<int>.One);
+            res += Vector256.Sum(vec4);
         }
-        return garbage;
+        i++;
+        for (; i < length; i++)
+        {
+            res += chunk[(int)i] - chunk[(int)(i - 1)] - 1;
+        }
+        return res;
     }
     
     private static (int[] TrimLeft, int[] JoinRight)[] CalculateMinGarbageCombination(ReadOnlySpan<int> chunk1, ReadOnlySpan<int> chunk2)

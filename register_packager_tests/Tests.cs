@@ -14,6 +14,8 @@ public class Fixture
     {
         var result = Algorithm.Solve(maxLimit, registers);
         var greedy = Chunk(maxLimit, registers).ToArray();
+        
+        File.WriteAllText("registers.txt", string.Join(", ", registers));
         _testOutputHelper.WriteLine($"[{string.Join(", ", registers)}]");
         _testOutputHelper.WriteLine(string.Empty);
         _testOutputHelper.WriteLine($"[{string.Join(", ", greedy.Select(x => $"[{string.Join(", ", x)}]"))}] -> [Chunks: {greedy.Length}, Garbage: {greedy.Sum(CalculateGarbage)}]");
@@ -180,7 +182,7 @@ public class Tests : IClassFixture<Fixture>
     }
     
     [Theory]
-    [InlineData(256, 16394)]
+    [InlineData(256, 100_000)]
     public void Should_Handle_Large_Amount_Of_Registers_Better_Than_Straightforward_Greedy(int maxLimit, int count)
     {
         var registers = Enumerable.Range(0, count)
