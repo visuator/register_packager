@@ -13,13 +13,16 @@ public class Benchmarks
     public void Setup()
     {
         _registers = File
-            .ReadAllText(@"<path>")
+            .ReadAllText(@"C:\Users\Workstation\RiderProjects\register_packager\register_packager_benchmarks\bin\Release\net9.0\registers.txt")
             .Split(", ").Select(int.Parse).ToArray();
     }
     
     [Benchmark]
     public void On100_000_RegistersWithMax256()
     {
-        _ = Algorithm.Solve(256, _registers);
+        _ = new Algorithm(x =>
+        {
+            x.MaxLimit = 256;
+        }).Solve(_registers);
     }
 }

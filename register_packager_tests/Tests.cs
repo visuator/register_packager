@@ -12,7 +12,10 @@ public class Fixture
     public void Inject(ITestOutputHelper testOutputHelper) => _testOutputHelper = testOutputHelper;
     public int[][] Run(int maxLimit, int[] registers)
     {
-        var result = Algorithm.Solve(maxLimit, registers);
+        var result = new Algorithm(x =>
+        {
+            x.MaxLimit = maxLimit;
+        }).Solve(registers);
         var greedy = Chunk(maxLimit, registers).ToArray();
         
         File.WriteAllText("registers.txt", string.Join(", ", registers));
