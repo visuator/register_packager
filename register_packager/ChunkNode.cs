@@ -82,15 +82,15 @@ public class ChunkNode
         }
         return (depth, garbage);
     }
-
-    public IEnumerable<int[]> GetRegisterChunks()
+    
+    public IEnumerable<Chunk> GetChunks()
     {
         var current = this;
         while (current is not null)
         {
             if (current.Chunk.Registers.Length != 0)
             {
-                yield return current.Chunk.Registers;
+                yield return current.Chunk;
             }
             current = current.Next;
         }

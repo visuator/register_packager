@@ -18,30 +18,36 @@ public class Worker
                     var candidate = node;
                     
                     Min<int> min = new(ChunkNode.CalculateWeight(options.MaxLimit, tail, current, follow));
-                    foreach (var (trimLeft, joinRight) in current.GetMinGarbageCandidates(follow))
+                    var c = 0;
+                    foreach (var (trimLeft, joinRight) in current.GetMinGarbageCandidates(options, follow))
                     {
-                        if (trimLeft.Registers.Length != 0 && joinRight.ExcessLimit(options.MaxLimit, out var taken, out var rest))
+                        c++;
+                        if (joinRight.ExcessLimit(options.MaxLimit, out var taken, out var rest))
                         {
-                            if (rearrange)
+                            if (trimLeft.Registers.Length != 0)
                             {
-                                continue;
-                            }
-                            var next = WorkRecursive(options, ChunkNode.CreateHead(tail, rest), true);
-                            if (next.CalculateTail().Depth <= (tail?.CalculateTail().Depth ?? 0))
-                            {
+                                if (rearrange)
+                                {
+                                    continue;
+                                }
+                                var next = WorkRecursive(options, ChunkNode.CreateHead(tail, rest), true);
                                 if (min.TryChange(ChunkNode.CalculateWeight(options.MaxLimit, next, trimLeft, taken)))
                                 {
                                     candidate = ChunkNode.CreateHead(next, trimLeft, taken);
                                 }
                             }
                         }
-                        if (!joinRight.ExcessLimit(options.MaxLimit))
+                        else
                         {
                             if (min.TryChange(ChunkNode.CalculateWeight(options.MaxLimit, tail, trimLeft, joinRight)))
                             {
                                 candidate = ChunkNode.CreateHead(tail, trimLeft, joinRight);
                             }
                         }
+                    }
+                    if (c == 0)
+                    {
+                        
                     }
                     node.Replace(candidate);
                 }

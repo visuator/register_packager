@@ -10,10 +10,8 @@ public class Algorithm
         setup(_options);
     }
 
-    public int[][] Solve(int[] registers)
-    {
-        var root = ChunkPreparer.Prepare(_options, registers);
-        var result = Worker.Work(_options, root);
-        return result.GetRegisterChunks().ToArray();
-    }
+    public int[][] Solve(int[] registers) =>
+        Worker.Work(_options, GreedyPreparer.Prepare(_options, registers)).GetChunks()
+            .Select(x => x.Registers)
+            .ToArray();
 }
