@@ -49,6 +49,22 @@ public class ChunkNode
     }
     
     private static int GetNumberWithZeros(int x) => (int)Math.Pow(10, (int)Math.Floor(Math.Log10(x)) + 1);
+    private (int Depth, int Garbage) CalculateTail()
+    {
+        var garbage = 0;
+        var depth = 0;
+        var current = this;
+        while (current is not null)
+        {
+            garbage += current.Chunk.CalculateGarbage();
+            if (current.Chunk.Registers.Length != 0)
+            {
+                depth++;
+            }
+            current = current.Next;
+        }
+        return (depth, garbage);
+    }
     public static int CalculateWeight(int maxLimit, ChunkNode? tail, params IEnumerable<Chunk> chunks)
     {
         var (depth, garbage) = tail?.CalculateTail() ?? (0, 0);
@@ -64,23 +80,6 @@ public class ChunkNode
             }
         }
         return garbage + GetNumberWithZeros(maxLimit) * Math.Max(0, depth);
-    }
-    
-    public (int Depth, int Garbage) CalculateTail()
-    {
-        var garbage = 0;
-        var depth = 0;
-        var current = this;
-        while (current is not null)
-        {
-            garbage += current.Chunk.CalculateGarbage();
-            if (current.Chunk.Registers.Length != 0)
-            {
-                depth++;
-            }
-            current = current.Next;
-        }
-        return (depth, garbage);
     }
     
     public IEnumerable<Chunk> GetChunks()
