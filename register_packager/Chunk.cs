@@ -75,10 +75,6 @@ public readonly struct Chunk(int[] registers)
             }
             if (trimLeft.Length == 0 || min.TryChange(CalculateGarbageInternal(trimLeft) + CalculateGarbageInternal(joinRight)))
             {
-                if (trimLeft.Contains(14999) || joinRight.Contains(14999))
-                {
-                    
-                }
                 buffer.Add(new(trimLeft.ToArray(), joinRight.ToArray()));
             }
         }

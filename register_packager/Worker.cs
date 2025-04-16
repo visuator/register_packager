@@ -18,10 +18,8 @@ public class Worker
                     var candidate = node;
                     
                     Min<int> min = new(ChunkNode.CalculateWeight(options.MaxLimit, tail, current, follow));
-                    var c = 0;
                     foreach (var (trimLeft, joinRight) in current.GetMinGarbageCandidates(options, follow))
                     {
-                        c++;
                         if (joinRight.ExcessLimit(options.MaxLimit, out var taken, out var rest))
                         {
                             if (trimLeft.Registers.Length != 0)
@@ -30,7 +28,7 @@ public class Worker
                                 {
                                     continue;
                                 }
-                                var next = WorkRecursive(options, ChunkNode.CreateHead(tail, rest), true);
+                                var next = WorkRecursive(options, GreedyPreparer.Prepare(options, [..rest, ..tail?.GetChunks().SelectMany(x => x.Registers) ?? []]), true);
                                 if (min.TryChange(ChunkNode.CalculateWeight(options.MaxLimit, next, trimLeft, taken)))
                                 {
                                     candidate = ChunkNode.CreateHead(next, trimLeft, taken);
@@ -44,10 +42,6 @@ public class Worker
                                 candidate = ChunkNode.CreateHead(tail, trimLeft, joinRight);
                             }
                         }
-                    }
-                    if (c == 0)
-                    {
-                        
                     }
                     node.Replace(candidate);
                 }
