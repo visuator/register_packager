@@ -20,9 +20,9 @@ public class Benchmarks
     [Benchmark]
     public void On100_000_RegistersWithMax256()
     {
-        _ = new Algorithm(x =>
+        _ = new ChunkPackager(x =>
         {
             x.MaxLimit = 256;
-        }).Solve(_registers);
+        }).Package(_registers);
     }
 }

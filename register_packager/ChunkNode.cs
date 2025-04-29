@@ -1,10 +1,10 @@
-namespace register_packager;
+﻿namespace register_packager;
 
-public class ChunkNode
+internal class ChunkNode
 {
-    public static ChunkNode CreateFictiveNode() => new(Chunk.Empty);
+    internal static ChunkNode CreateFictiveNode() => new(Chunk.Empty);
 
-    public static ChunkNode CreateHead(ChunkNode? tail, params Chunk[] chunks)
+    internal static ChunkNode CreateHead(ChunkNode? tail, params Chunk[] chunks)
     {
         var node = tail;
         for (var i = chunks.Length - 1; i >= 0; i--)
@@ -20,7 +20,7 @@ public class ChunkNode
             }
         }
         ArgumentNullException.ThrowIfNull(node);
-        
+
         return node;
     }
 
@@ -29,10 +29,10 @@ public class ChunkNode
         Chunk = chunk;
     }
 
-    public Chunk Chunk { get; private set; }
-    public ChunkNode? Next { get; private set; }
+    internal Chunk Chunk { get; private set; }
+    internal ChunkNode? Next { get; private set; }
 
-    public void Append(Chunk chunk)
+    internal void Append(Chunk chunk)
     {
         var current = this;
         while (current.Next is not null)
@@ -42,12 +42,12 @@ public class ChunkNode
         current.Next = new(chunk);
     }
 
-    public void Replace(ChunkNode chunkNode)
+    internal void Replace(ChunkNode chunkNode)
     {
         Chunk = chunkNode.Chunk;
         Next = chunkNode.Next;
     }
-    
+
     private static int GetNumberWithZeros(int x) => (int)Math.Pow(10, (int)Math.Floor(Math.Log10(x)) + 1);
     private (int Depth, int Garbage) CalculateTail()
     {
@@ -65,7 +65,7 @@ public class ChunkNode
         }
         return (depth, garbage);
     }
-    public static int CalculateWeight(int maxLimit, ChunkNode? tail, params IEnumerable<Chunk> chunks)
+    internal static int CalculateWeight(int maxLimit, ChunkNode? tail, params Chunk[] chunks)
     {
         var (depth, garbage) = tail?.CalculateTail() ?? (0, 0);
         foreach (var chunk in chunks)
@@ -81,8 +81,8 @@ public class ChunkNode
         }
         return garbage + GetNumberWithZeros(maxLimit) * Math.Max(0, depth);
     }
-    
-    public IEnumerable<Chunk> GetChunks()
+
+    internal IEnumerable<Chunk> GetChunks()
     {
         var current = this;
         while (current is not null)

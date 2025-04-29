@@ -7,4 +7,7 @@
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
+    <ItemGroup>
+        <InternalsVisibleTo Include="register_packager_tests" />
+    </ItemGroup>
 </Project>

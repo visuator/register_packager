@@ -1,9 +1,9 @@
-namespace register_packager;
+﻿namespace register_packager;
 
-public class Worker
+internal class ReadChunkPackager
 {
-    public static ChunkNode Work(ChunkPreparerOptions options, ChunkNode root) => WorkRecursive(options, root, false);
-    private static ChunkNode WorkRecursive(ChunkPreparerOptions options, ChunkNode root, bool rearrange)
+    public static ChunkNode Package(ChunkPreparerOptions options, ChunkNode root) => PackageRecursive(options, root, false);
+    private static ChunkNode PackageRecursive(ChunkPreparerOptions options, ChunkNode root, bool rearrange)
     {
         var node = root;
         while (node is not null)
@@ -16,7 +16,7 @@ public class Worker
                 {
                     var tail = node.Next.Next;
                     var candidate = node;
-                    
+
                     Min<int> min = new(ChunkNode.CalculateWeight(options.MaxLimit, tail, current, follow));
                     foreach (var (trimLeft, joinRight) in current.GetMinGarbageCandidates(options, follow))
                     {
@@ -28,10 +28,13 @@ public class Worker
                                 {
                                     continue;
                                 }
-                                var next = WorkRecursive(options, GreedyPreparer.Prepare(options, [..rest, ..tail?.GetChunks().SelectMany(x => x.Registers) ?? []]), true);
-                                if (min.TryChange(ChunkNode.CalculateWeight(options.MaxLimit, next, trimLeft, taken)))
+                                foreach (var (tl1, jr1) in new Chunk(taken).GetMinGarbageCandidates(options, rest))
                                 {
-                                    candidate = ChunkNode.CreateHead(next, trimLeft, taken);
+                                    var next = PackageRecursive(options, ChunkNodePreparer.Prepare(options, [..jr1.Registers, ..tail?.GetChunks().SelectMany(x => x.Registers) ?? []]).Head, true);
+                                    if (min.TryChange(ChunkNode.CalculateWeight(options.MaxLimit, next, trimLeft, tl1)))
+                                    {
+                                        candidate = ChunkNode.CreateHead(next, trimLeft, tl1);
+                                    }
                                 }
                             }
                         }

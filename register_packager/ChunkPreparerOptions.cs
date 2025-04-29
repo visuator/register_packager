@@ -1,4 +1,4 @@
-namespace register_packager;
+﻿namespace register_packager;
 
 public class ChunkPreparerOptions
 {
@@ -14,4 +14,5 @@ public class ChunkPreparerOptions
     }
 
     public bool Legacy_CoilsCompatibility { get; set; }
+    public bool ReadOnlyMode { get; set; }
 }

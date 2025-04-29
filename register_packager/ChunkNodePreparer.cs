@@ -1,8 +1,12 @@
-namespace register_packager;
+﻿namespace register_packager;
 
-public static class GreedyPreparer
+
+internal record ChunkNodeResult(ChunkNode Head);
+internal record WriteChunkNodeResult(ChunkNode Head) : ChunkNodeResult(Head);
+internal record ReadChunkNodeResult(ChunkNode Head) : ChunkNodeResult(Head);
+internal static class ChunkNodePreparer
 {
-    public static ChunkNode Prepare(ChunkPreparerOptions options, int[] registers)
+    internal static ChunkNodeResult Prepare(ChunkPreparerOptions options, int[] registers)
     {
         ArgumentOutOfRangeException.ThrowIfZero(registers.Length);
 
@@ -18,18 +22,19 @@ public static class GreedyPreparer
             }
             else
             {
-                currentLimit += registers[index] - registers[index - 1];
-                if (currentLimit > options.MaxLimit)
+                var distance = registers[index] - registers[index - 1];
+                currentLimit += distance;
+                if (currentLimit > options.MaxLimit || (!options.ReadOnlyMode && distance > 1))
                 {
                     AppendReset();
-                }   
+                }
             }
             index++;
         }
         root.Append(registers[chunkStart..index]);
         ArgumentNullException.ThrowIfNull(root.Next);
-        
-        return root.Next;
+
+        return options.ReadOnlyMode ? new ReadChunkNodeResult(root.Next) : new WriteChunkNodeResult(root.Next);
 
         void AppendReset()
         {
