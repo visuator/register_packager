@@ -2,10 +2,10 @@
 
 internal class ReadChunkPackager(ChunkPreparerOptions options, ChunkNodePreparer preparer)
 {
-    internal ChunkNode Package(ChunkNode root) => PackageRecursive(root, false);
-    private ChunkNode PackageRecursive(ChunkNode root, bool rearrange)
+    internal ChunkNode Package(ChunkNode head) => PackageRecursive(head, false);
+    private ChunkNode PackageRecursive(ChunkNode head, bool rearrange)
     {
-        var node = root;
+        var node = head;
         while (node?.Next != null)
         {
             var current = node.Chunk;
@@ -39,6 +39,6 @@ internal class ReadChunkPackager(ChunkPreparerOptions options, ChunkNodePreparer
             node.Replace(candidate);
             node = node.Next;
         }
-        return root;
+        return head;
     }
 }

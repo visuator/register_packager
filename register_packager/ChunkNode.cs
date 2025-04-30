@@ -3,7 +3,6 @@
 internal class ChunkNode(Chunk chunk)
 {
     internal static ChunkNode CreateFictiveNode() => new(Chunk.Empty);
-
     internal static ChunkNode CreateHead(ChunkNode? tail, params Chunk[] chunks)
     {
         var node = tail;
@@ -23,10 +22,8 @@ internal class ChunkNode(Chunk chunk)
 
         return node;
     }
-
     internal Chunk Chunk { get; private set; } = chunk;
     internal ChunkNode? Next { get; private set; }
-
     internal void Append(Chunk chunk)
     {
         var current = this;
@@ -36,7 +33,6 @@ internal class ChunkNode(Chunk chunk)
         }
         current.Next = new(chunk);
     }
-
     internal ChunkNode InsertBefore(Chunk chunk)
     {
         var node = new ChunkNode(chunk)
@@ -45,14 +41,11 @@ internal class ChunkNode(Chunk chunk)
         };
         return node;
     }
-
     internal void Replace(ChunkNode chunkNode)
     {
         Chunk = chunkNode.Chunk;
         Next = chunkNode.Next;
     }
-
-    private static int GetNumberWithZeros(int x) => (int)Math.Pow(10, (int)Math.Floor(Math.Log10(x)) + 1);
     internal int CalculateWeight(int maxLimit)
     {
         var distance = 0;
@@ -69,7 +62,6 @@ internal class ChunkNode(Chunk chunk)
         }
         return distance + GetNumberWithZeros(maxLimit) * Math.Max(0, depth);
     }
-
     internal IEnumerable<Chunk> GetChunks()
     {
         var current = this;
@@ -82,4 +74,6 @@ internal class ChunkNode(Chunk chunk)
             current = current.Next;
         }
     }
+
+    private static int GetNumberWithZeros(int x) => (int)Math.Pow(10, (int)Math.Floor(Math.Log10(x)) + 1);
 }
