@@ -10,7 +10,7 @@ internal static class ChunkNodePreparer
     {
         ArgumentOutOfRangeException.ThrowIfZero(registers.Length);
 
-        var root = ChunkNode.CreateFictiveNode();
+        var head = ChunkNode.CreateFictiveNode();
         var chunkStart = 0;
         var currentLimit = 1;
         var index = 1;
@@ -31,14 +31,14 @@ internal static class ChunkNodePreparer
             }
             index++;
         }
-        root.Append(registers[chunkStart..index]);
-        ArgumentNullException.ThrowIfNull(root.Next);
+        head.Append(registers[chunkStart..index]);
+        ArgumentNullException.ThrowIfNull(head.Next);
 
-        return options.ReadOnlyMode ? new ReadChunkNodeResult(root.Next) : new WriteChunkNodeResult(root.Next);
+        return options.ReadOnlyMode ? new ReadChunkNodeResult(head.Next) : new WriteChunkNodeResult(head.Next);
 
         void AppendReset()
         {
-            root.Append(registers[chunkStart..index]);
+            head.Append(registers[chunkStart..index]);
             currentLimit = 1;
             chunkStart = index;
         }
