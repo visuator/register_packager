@@ -28,8 +28,8 @@ internal class ReadChunkPackager(ChunkPreparerOptions options, ChunkNodePreparer
                 else if (trimLeft.Length != 0)
                 {
                     var temp = tail
-                        .InsertBefore(trimLeft)
-                        .InsertBefore(joinRight);
+                        .InsertBefore(joinRight)
+                        .InsertBefore(trimLeft);
                     if (min.TryChange(temp.CalculateWeight(options.MaxLimit)))
                     {
                         candidate = temp;

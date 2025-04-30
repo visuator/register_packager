@@ -18,7 +18,7 @@ public class Fixture
         var result = packager.Package(registers);
         var greedy = preparer.Prepare(registers).Head.GetChunks().ToArray();
 
-        _testOutputHelper.WriteLine($"[{string.Join(", ", result.Select(x => $"[{string.Join(", ", x)}]"))}] -> [Chunks: {result.Length}, Garbage: {result.Sum(x => CalculateGarbage(x))}]");
+        _testOutputHelper.WriteLine($"[{string.Join(", ", result.Select(x => $"[{string.Join(", ", x)}]"))}] -> [Chunks: {result.Length}, Garbage: {result.Sum(x => CalculateDistance(x))}]");
         DefaultAsserts(options, registers, greedy, result);
         return result;
     }
@@ -34,7 +34,7 @@ public class Fixture
 
         if (flattenChunks.Length == greedyChunks.Length)
         {
-            chunks.Sum(x => CalculateGarbage(x)).Should().BeLessThanOrEqualTo(greedyChunks.Sum(x => x.CalculateDistance()));
+            chunks.Sum(x => CalculateDistance(x)).Should().BeLessThanOrEqualTo(greedyChunks.Sum(x => x.CalculateDistance()));
         }
 
         if (options.Legacy_CoilsCompatibility)
@@ -43,17 +43,6 @@ public class Fixture
         }
     }
     private static int CalculateDistance(ReadOnlySpan<int> registers) => registers.Length > 0 ? registers[^1] - registers[0] + 1 : 0;
-    private static int CalculateGarbage(ReadOnlySpan<int> registers)
-    {
-        var garbage = 0;
-        var index = 1;
-        while (index < registers.Length)
-        {
-            garbage += registers[index] - registers[index - 1] - 1;
-            index++;
-        }
-        return garbage;
-    }
     private static bool IsLegacy_CoilsCompatible(ReadOnlySpan<int> registers)
     {
         var distance = CalculateDistance(registers);
@@ -160,6 +149,14 @@ public class Tests : IClassFixture<Fixture>
 
         var result = _fixture.Run(maxLimit, false, registers);
         result.Should().BeEquivalentTo((int[][]) [[1, 15, 25]], "[[1, 15, 25]] is optimal solution");
+    }
+
+    [Fact]
+    public void Test_Case_1()
+    {
+        var registers = File.ReadAllText("registers.txt").Split(", ").Select(int.Parse).OrderBy(x => x).ToArray();
+
+        _fixture.Run(125, false, registers);
     }
     
     [Theory]
