@@ -7,17 +7,6 @@ internal readonly struct Chunk(int[] registers) : IEnumerable<int>
 {
     private readonly int[] _registers = registers;
 
-    private static int CalculateGarbageInternal(ReadOnlySpan<int> registers)
-    {
-        var garbage = 0;
-        var index = 1;
-        while (index < registers.Length)
-        {
-            garbage += registers[index] - registers[index - 1] - 1;
-            index++;
-        }
-        return garbage;
-    }
     private static int CalculateDistanceInternal(ReadOnlySpan<int> registers) => registers.Length > 0 ? registers[^1] - registers[0] + 1 : 0;
     private static bool IsLegacy_CoilsCompatibleInternal(ReadOnlySpan<int> registers)
     {
@@ -30,7 +19,7 @@ internal readonly struct Chunk(int[] registers) : IEnumerable<int>
     public IEnumerator<int> GetEnumerator() => _registers.AsEnumerable().GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     internal static Chunk Empty => new([]);
-    internal int CalculateGarbage() => CalculateGarbageInternal(_registers);
+    internal int CalculateDistance() => CalculateDistanceInternal(_registers);
     internal bool ExcessLimit(int maxLimit, out Chunk taken, out Chunk rest)
     {
         ArgumentOutOfRangeException.ThrowIfZero(_registers.Length);
@@ -59,7 +48,7 @@ internal readonly struct Chunk(int[] registers) : IEnumerable<int>
     internal List<ChunkPair> GetMinGarbageCandidates(ChunkPreparerOptions options, Chunk second, bool rearrange)
     {
         List<ChunkPair> buffer = new(_registers.Length);
-        Min<int> min = new(CalculateGarbage() + second.CalculateGarbage());
+        Min<int> min = new(CalculateDistanceInternal(_registers) + CalculateDistanceInternal(second._registers));
         ReadOnlySpan<int> concat = [.._registers, ..second._registers];
         for (var splitPoint = _registers.Length - 1; splitPoint >= 0; splitPoint--)
         {
@@ -74,7 +63,7 @@ internal readonly struct Chunk(int[] registers) : IEnumerable<int>
             {
                 continue;
             }
-            var garbage = CalculateGarbageInternal(trimLeft) + CalculateGarbageInternal(joinRight);
+            var garbage = CalculateDistanceInternal(trimLeft) + CalculateDistanceInternal(joinRight);
             if (min.TryChange(garbage) || trimLeft.Length == 0)
             {
                 buffer.Add(new(trimLeft, joinRight));

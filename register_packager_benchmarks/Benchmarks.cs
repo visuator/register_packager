@@ -18,11 +18,12 @@ public class Benchmarks
     }
     
     [Benchmark]
-    public void On100_000_RegistersWithMax256()
+    public void On16394_RegistersWithMax256()
     {
         _ = new ChunkPackager(x =>
         {
             x.MaxLimit = 256;
+            x.ReadOnlyMode = true;
         }).Package(_registers);
     }
 }

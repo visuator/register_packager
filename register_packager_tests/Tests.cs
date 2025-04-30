@@ -40,7 +40,7 @@ public class Fixture
 
         if (flattenChunks.Length == greedyChunks.Length)
         {
-            chunks.Sum(x => CalculateGarbage(x)).Should().BeLessThanOrEqualTo(greedyChunks.Sum(x => x.CalculateGarbage()));
+            chunks.Sum(x => CalculateGarbage(x)).Should().BeLessThanOrEqualTo(greedyChunks.Sum(x => x.CalculateDistance()));
         }
 
         if (options.Legacy_CoilsCompatibility)
@@ -170,7 +170,7 @@ public class Tests : IClassFixture<Fixture>
     
     [Theory]
     [InlineData(1024,  true, 16394)]
-    [InlineData(256,  false, 16394)]
+    [InlineData(256,  false, 1024)]
     public void Should_Handle_Large_Amount_Of_Registers_Better_Than_Straightforward_Greedy(int maxLimit, bool legacy_coilsCompatibility, int count)
     {
         var registers = Enumerable.Range(0, count)

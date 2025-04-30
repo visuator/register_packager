@@ -13,7 +13,7 @@ internal class ChunkNodePreparer(ChunkPreparerOptions options)
     }
     internal ChunkNode Prepare(ChunkNode head) => PrepareInternal(head.GetChunks().SelectMany(x => x).ToArray());
 
-    private ChunkNode PrepareInternal(int[] registers)
+    private ChunkNode PrepareInternal(ReadOnlySpan<int> registers)
     {
         ArgumentOutOfRangeException.ThrowIfZero(registers.Length);
 
@@ -23,9 +23,11 @@ internal class ChunkNodePreparer(ChunkPreparerOptions options)
         var index = 1;
         while (index < registers.Length)
         {
-            if (options.Legacy_CoilsCompatibility && !Chunk.IsLegacy_CoilsCompatible(registers.AsSpan()[chunkStart..(index + 1)]))
+            if (options.Legacy_CoilsCompatibility && !Chunk.IsLegacy_CoilsCompatible(registers[chunkStart..(index + 1)]))
             {
-                AppendReset();
+                head.Append(registers[chunkStart..index]);
+                currentLimit = 1;
+                chunkStart = index;
             }
             else
             {
@@ -33,7 +35,9 @@ internal class ChunkNodePreparer(ChunkPreparerOptions options)
                 currentLimit += distance;
                 if (currentLimit > options.MaxLimit || !options.ReadOnlyMode && distance > 1)
                 {
-                    AppendReset();
+                    head.Append(registers[chunkStart..index]);
+                    currentLimit = 1;
+                    chunkStart = index;
                 }
             }
             index++;
@@ -42,12 +46,5 @@ internal class ChunkNodePreparer(ChunkPreparerOptions options)
         ArgumentNullException.ThrowIfNull(head.Next);
 
         return head.Next;
-
-        void AppendReset()
-        {
-            head.Append(registers[chunkStart..index]);
-            currentLimit = 1;
-            chunkStart = index;
-        }
     }
 }

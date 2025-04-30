@@ -53,26 +53,20 @@ internal class ChunkNode(Chunk chunk)
     }
 
     private static int GetNumberWithZeros(int x) => (int)Math.Pow(10, (int)Math.Floor(Math.Log10(x)) + 1);
-    private (int Depth, int Garbage) CalculateTail()
+    internal int CalculateWeight(int maxLimit)
     {
         var garbage = 0;
         var depth = 0;
         var current = this;
         while (current is not null)
         {
-            garbage += current.Chunk.CalculateGarbage();
+            garbage += current.Chunk.CalculateDistance();
             if (current.Chunk.Length != 0)
             {
                 depth++;
             }
             current = current.Next;
         }
-        return (depth, garbage);
-    }
-
-    internal int CalculateWeight(int maxLimit)
-    {
-        var (depth, garbage) = CalculateTail();
         return garbage + GetNumberWithZeros(maxLimit) * Math.Max(0, depth);
     }
 
