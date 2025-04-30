@@ -18,12 +18,6 @@ public class Fixture
         var result = packager.Package(registers);
         var greedy = preparer.Prepare(registers).Head.GetChunks().ToArray();
 
-        //File.Delete("registers.txt");
-        //File.WriteAllText("registers.txt", string.Join(", ", registers));
-        //_testOutputHelper.WriteLine($"[{string.Join(", ", registers)}]");
-        //_testOutputHelper.WriteLine(string.Empty);
-        //_testOutputHelper.WriteLine($"[{string.Join(", ", greedy.Select(x => $"[{string.Join(", ", x.Registers)}]"))}] -> [Chunks: {greedy.Length}, Garbage: {greedy.Sum(x => x.CalculateGarbage())}]");
-        //_testOutputHelper.WriteLine(string.Empty);
         _testOutputHelper.WriteLine($"[{string.Join(", ", result.Select(x => $"[{string.Join(", ", x)}]"))}] -> [Chunks: {result.Length}, Garbage: {result.Sum(x => CalculateGarbage(x))}]");
         DefaultAsserts(options, registers, greedy, result);
         return result;
@@ -179,12 +173,5 @@ public class Tests : IClassFixture<Fixture>
             .OrderBy(x => x)
             .ToArray();
         _fixture.Run(maxLimit, legacy_coilsCompatibility, registers);
-    }
-
-    [Fact]
-    public void Registers16394()
-    {
-        var registers = File.ReadAllText("registers.txt").Split(", ").Select(int.Parse).ToArray();
-        _fixture.Run(256, false, registers);
     }
 }

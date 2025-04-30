@@ -20,30 +20,7 @@ internal readonly struct Chunk(int[] registers) : IEnumerable<int>
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     internal static Chunk Empty => new([]);
     internal int CalculateDistance() => CalculateDistanceInternal(_registers);
-    internal bool ExcessLimit(int maxLimit, out Chunk taken, out Chunk rest)
-    {
-        ArgumentOutOfRangeException.ThrowIfZero(_registers.Length);
-
-        var span = _registers.AsSpan();
-        if (CalculateDistanceInternal(span) > maxLimit)
-        {
-            var index = _registers.Length - 1;
-            while (index >= 0)
-            {
-                if (CalculateDistanceInternal(span[..index]) <= maxLimit)
-                {
-                    break;
-                }
-                index--;
-            }
-            rest = _registers[index..].ToArray();
-            taken = _registers[..index].ToArray();
-            return true;
-        }
-        rest = [];
-        taken = _registers.ToArray();
-        return false;
-    }
+    internal bool ExcessLimit(int maxLimit) => CalculateDistanceInternal(_registers) > maxLimit;
     internal static bool IsLegacy_CoilsCompatible(ReadOnlySpan<int> registers) => IsLegacy_CoilsCompatibleInternal(registers);
     internal List<ChunkPair> GetMinGarbageCandidates(ChunkPreparerOptions options, Chunk second, bool rearrange)
     {

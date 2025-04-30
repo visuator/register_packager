@@ -55,19 +55,19 @@ internal class ChunkNode(Chunk chunk)
     private static int GetNumberWithZeros(int x) => (int)Math.Pow(10, (int)Math.Floor(Math.Log10(x)) + 1);
     internal int CalculateWeight(int maxLimit)
     {
-        var garbage = 0;
+        var distance = 0;
         var depth = 0;
         var current = this;
         while (current is not null)
         {
-            garbage += current.Chunk.CalculateDistance();
+            distance += current.Chunk.CalculateDistance();
             if (current.Chunk.Length != 0)
             {
                 depth++;
             }
             current = current.Next;
         }
-        return garbage + GetNumberWithZeros(maxLimit) * Math.Max(0, depth);
+        return distance + GetNumberWithZeros(maxLimit) * Math.Max(0, depth);
     }
 
     internal IEnumerable<Chunk> GetChunks()
