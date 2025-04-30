@@ -4,9 +4,16 @@
 internal record ChunkNodeResult(ChunkNode Head);
 internal record WriteChunkNodeResult(ChunkNode Head) : ChunkNodeResult(Head);
 internal record ReadChunkNodeResult(ChunkNode Head) : ChunkNodeResult(Head);
-internal static class ChunkNodePreparer
+internal class ChunkNodePreparer(ChunkPreparerOptions options)
 {
-    internal static ChunkNodeResult Prepare(ChunkPreparerOptions options, int[] registers)
+    internal ChunkNodeResult Prepare(int[] registers)
+    {
+        var node = PrepareInternal(registers);
+        return options.ReadOnlyMode ? new ReadChunkNodeResult(node) : new WriteChunkNodeResult(node);
+    }
+    internal ChunkNode Prepare(ChunkNode head) => PrepareInternal(head.GetChunks().SelectMany(x => x).ToArray());
+
+    private ChunkNode PrepareInternal(int[] registers)
     {
         ArgumentOutOfRangeException.ThrowIfZero(registers.Length);
 
@@ -24,7 +31,7 @@ internal static class ChunkNodePreparer
             {
                 var distance = registers[index] - registers[index - 1];
                 currentLimit += distance;
-                if (currentLimit > options.MaxLimit || (!options.ReadOnlyMode && distance > 1))
+                if (currentLimit > options.MaxLimit || !options.ReadOnlyMode && distance > 1)
                 {
                     AppendReset();
                 }
@@ -34,7 +41,7 @@ internal static class ChunkNodePreparer
         head.Append(registers[chunkStart..index]);
         ArgumentNullException.ThrowIfNull(head.Next);
 
-        return options.ReadOnlyMode ? new ReadChunkNodeResult(head.Next) : new WriteChunkNodeResult(head.Next);
+        return head.Next;
 
         void AppendReset()
         {

@@ -5,8 +5,7 @@ namespace register_packager;
 internal readonly record struct ChunkPair(Chunk TrimLeft, Chunk JoinRight);
 internal readonly struct Chunk(int[] registers) : IEnumerable<int>
 {
-    internal static Chunk Empty => new([]);
-    public static implicit operator Chunk(int[] registers) => new(registers);
+    private readonly int[] _registers = registers;
 
     private static int CalculateGarbageInternal(ReadOnlySpan<int> registers)
     {
@@ -19,27 +18,30 @@ internal readonly struct Chunk(int[] registers) : IEnumerable<int>
         }
         return garbage;
     }
-
-    private readonly int[] _registers = registers;
-    public int this[int i] => _registers[i];
-    internal static int CalculateGarbage(ReadOnlySpan<int> registers) => CalculateGarbageInternal(registers);
-    internal int CalculateGarbage() => CalculateGarbageInternal(_registers);
-
     private static int CalculateDistanceInternal(ReadOnlySpan<int> registers) => registers.Length > 0 ? registers[^1] - registers[0] + 1 : 0;
-    internal static int CalculateDistance(ReadOnlySpan<int> registers) => CalculateDistanceInternal(registers);
+    private static bool IsLegacy_CoilsCompatibleInternal(ReadOnlySpan<int> registers)
+    {
+        var distance = CalculateDistanceInternal(registers);
+        return distance <= 256 || distance % 8 == 0;
+    }
 
-    private static bool ExcessLimitInternal(int maxLimit, ReadOnlySpan<int> registers) => CalculateDistanceInternal(registers) > maxLimit;
-    internal static bool ExcessLimit(int maxLimit, ReadOnlySpan<int> registers) => ExcessLimitInternal(maxLimit, registers);
-    internal bool ExcessLimit(int maxLimit, out int[] taken, out int[] rest)
+    public static implicit operator Chunk(int[] registers) => new(registers);
+    public static implicit operator Chunk(ReadOnlySpan<int> registers) => new(registers.ToArray());
+    public IEnumerator<int> GetEnumerator() => _registers.AsEnumerable().GetEnumerator();
+    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+    internal static Chunk Empty => new([]);
+    internal int CalculateGarbage() => CalculateGarbageInternal(_registers);
+    internal bool ExcessLimit(int maxLimit, out Chunk taken, out Chunk rest)
     {
         ArgumentOutOfRangeException.ThrowIfZero(_registers.Length);
 
-        if (ExcessLimitInternal(maxLimit, _registers))
+        var span = _registers.AsSpan();
+        if (CalculateDistanceInternal(span) > maxLimit)
         {
             var index = _registers.Length - 1;
             while (index >= 0)
             {
-                if (!ExcessLimitInternal(maxLimit, _registers.AsSpan()[..index]))
+                if (CalculateDistanceInternal(span[..index]) <= maxLimit)
                 {
                     break;
                 }
@@ -53,16 +55,8 @@ internal readonly struct Chunk(int[] registers) : IEnumerable<int>
         taken = _registers.ToArray();
         return false;
     }
-
-    private static bool IsLegacy_CoilsCompatibleInternal(ReadOnlySpan<int> registers)
-    {
-        var distance = CalculateDistance(registers);
-        return distance <= 256 || distance % 8 == 0;
-    }
-
-    private static bool IsLegacy_CoilsCompatible(ReadOnlySpan<int> registers1, ReadOnlySpan<int> registers2) => IsLegacy_CoilsCompatibleInternal(registers1) && IsLegacy_CoilsCompatibleInternal(registers2);
     internal static bool IsLegacy_CoilsCompatible(ReadOnlySpan<int> registers) => IsLegacy_CoilsCompatibleInternal(registers);
-    internal List<ChunkPair> GetMinGarbageCandidates(ChunkPreparerOptions options, Chunk second)
+    internal List<ChunkPair> GetMinGarbageCandidates(ChunkPreparerOptions options, Chunk second, bool rearrange)
     {
         List<ChunkPair> buffer = new(_registers.Length);
         Min<int> min = new(CalculateGarbage() + second.CalculateGarbage());
@@ -72,19 +66,22 @@ internal readonly struct Chunk(int[] registers) : IEnumerable<int>
             var trimLeft = concat[..splitPoint];
             var joinRight = concat[splitPoint..];
 
-            if (options.Legacy_CoilsCompatibility && !IsLegacy_CoilsCompatible(trimLeft, joinRight))
+            if (rearrange && CalculateDistanceInternal(joinRight) > options.MaxLimit)
+            {
+                break;
+            }
+            if (options.Legacy_CoilsCompatibility && !(IsLegacy_CoilsCompatible(trimLeft) && IsLegacy_CoilsCompatible(joinRight)))
             {
                 continue;
             }
-            if (trimLeft.Length == 0 || min.TryChange(CalculateGarbageInternal(trimLeft) + CalculateGarbageInternal(joinRight)))
+            var garbage = CalculateGarbageInternal(trimLeft) + CalculateGarbageInternal(joinRight);
+            if (min.TryChange(garbage) || trimLeft.Length == 0)
             {
-                buffer.Add(new(trimLeft.ToArray(), joinRight.ToArray()));
+                buffer.Add(new(trimLeft, joinRight));
             }
         }
         return buffer;
     }
-    public int Length => _registers.Length;
-    public int[] ToArray() => _registers;
-    public IEnumerator<int> GetEnumerator() => _registers.AsEnumerable().GetEnumerator();
-    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+    internal int Length => _registers.Length;
+    internal int[] AsArray() => _registers;
 }

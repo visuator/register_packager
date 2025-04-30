@@ -12,13 +12,11 @@ public class Fixture
     public void Inject(ITestOutputHelper testOutputHelper) => _testOutputHelper = testOutputHelper;
     public int[][] Run(int maxLimit, bool legacy_coilsCompatibility, int[] registers)
     {
-        var result = new ChunkPackager(x =>
-        {
-            x.MaxLimit = maxLimit;
-            x.Legacy_CoilsCompatibility = legacy_coilsCompatibility;
-            x.ReadOnlyMode = true;
-        }).Package(registers);
-        var greedy = ChunkNodePreparer.Prepare(new ChunkPreparerOptions() { Legacy_CoilsCompatibility = legacy_coilsCompatibility, MaxLimit = maxLimit, ReadOnlyMode = true }, registers).Head.GetChunks().ToArray();
+        var options = new ChunkPreparerOptions() { Legacy_CoilsCompatibility = legacy_coilsCompatibility, MaxLimit = maxLimit, ReadOnlyMode = true };
+        var preparer = new ChunkNodePreparer(options);
+        var packager = new ChunkPackager(options);
+        var result = packager.Package(registers);
+        var greedy = preparer.Prepare(registers).Head.GetChunks().ToArray();
 
         //File.Delete("registers.txt");
         //File.WriteAllText("registers.txt", string.Join(", ", registers));
@@ -26,24 +24,46 @@ public class Fixture
         //_testOutputHelper.WriteLine(string.Empty);
         //_testOutputHelper.WriteLine($"[{string.Join(", ", greedy.Select(x => $"[{string.Join(", ", x.Registers)}]"))}] -> [Chunks: {greedy.Length}, Garbage: {greedy.Sum(x => x.CalculateGarbage())}]");
         //_testOutputHelper.WriteLine(string.Empty);
-        _testOutputHelper.WriteLine($"[{string.Join(", ", result.Select(x => $"[{string.Join(", ", x)}]"))}] -> [Chunks: {result.Length}, Garbage: {result.Sum(x => Chunk.CalculateGarbage(x))}]");
-        DefaultAsserts(maxLimit, registers, greedy, result);
+        _testOutputHelper.WriteLine($"[{string.Join(", ", result.Select(x => $"[{string.Join(", ", x)}]"))}] -> [Chunks: {result.Length}, Garbage: {result.Sum(x => CalculateGarbage(x))}]");
+        DefaultAsserts(options, registers, greedy, result);
         return result;
     }
-    private static void DefaultAsserts(int maxLimit, int[] registers, Chunk[] greedyChunks, int[][] chunks)
+    private static void DefaultAsserts(ChunkPreparerOptions options, int[] registers, Chunk[] greedyChunks, int[][] chunks)
     {
         chunks.Should().NotBeEmpty();
         
         var flattenChunks = chunks.SelectMany(x => x).ToArray();
         flattenChunks.Should().BeEquivalentTo(registers);
-        
-        chunks.Should().AllSatisfy(x => Chunk.ExcessLimit(maxLimit, x).Should().BeFalse());
+
+        chunks.Should().AllSatisfy(x => CalculateDistance(x).Should().BeLessThanOrEqualTo(options.MaxLimit));
         chunks.Should().HaveCountLessThanOrEqualTo(greedyChunks.Length);
 
         if (flattenChunks.Length == greedyChunks.Length)
         {
-            chunks.Sum(x => Chunk.CalculateGarbage(x)).Should().BeLessThanOrEqualTo(greedyChunks.Sum(x => x.CalculateGarbage()));
+            chunks.Sum(x => CalculateGarbage(x)).Should().BeLessThanOrEqualTo(greedyChunks.Sum(x => x.CalculateGarbage()));
         }
+
+        if (options.Legacy_CoilsCompatibility)
+        {
+            chunks.Should().AllSatisfy(x => IsLegacy_CoilsCompatible(x).Should().BeTrue());
+        }
+    }
+    private static int CalculateDistance(ReadOnlySpan<int> registers) => registers.Length > 0 ? registers[^1] - registers[0] + 1 : 0;
+    private static int CalculateGarbage(ReadOnlySpan<int> registers)
+    {
+        var garbage = 0;
+        var index = 1;
+        while (index < registers.Length)
+        {
+            garbage += registers[index] - registers[index - 1] - 1;
+            index++;
+        }
+        return garbage;
+    }
+    private static bool IsLegacy_CoilsCompatible(ReadOnlySpan<int> registers)
+    {
+        var distance = CalculateDistance(registers);
+        return distance <= 256 || distance % 8 == 0;
     }
 }
 public class Tests : IClassFixture<Fixture>
@@ -158,14 +178,7 @@ public class Tests : IClassFixture<Fixture>
             .Distinct()
             .OrderBy(x => x)
             .ToArray();
-        var result = _fixture.Run(maxLimit, legacy_coilsCompatibility, registers);
-        if (legacy_coilsCompatibility)
-        {
-            result.Should().AllSatisfy(x =>
-            {
-                Chunk.IsLegacy_CoilsCompatible(x).Should().BeTrue();
-            });
-        }
+        _fixture.Run(maxLimit, legacy_coilsCompatibility, registers);
     }
 
     [Fact]

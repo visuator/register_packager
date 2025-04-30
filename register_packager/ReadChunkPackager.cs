@@ -1,9 +1,9 @@
 ﻿namespace register_packager;
 
-internal class ReadChunkPackager
+internal class ReadChunkPackager(ChunkPreparerOptions options, ChunkNodePreparer preparer)
 {
-    public static ChunkNode Package(ChunkPreparerOptions options, ChunkNode root) => PackageRecursive(options, root, false);
-    private static ChunkNode PackageRecursive(ChunkPreparerOptions options, ChunkNode root, bool rearrange)
+    internal ChunkNode Package(ChunkNode root) => PackageRecursive(root, false);
+    private ChunkNode PackageRecursive(ChunkNode root, bool rearrange)
     {
         var node = root;
         while (node?.Next != null)
@@ -11,43 +11,38 @@ internal class ReadChunkPackager
             var current = node.Chunk;
             var follow = node.Next.Chunk;
 
-            if (follow.Length != 0)
-            {
-                var tail = node.Next.Next;
-                var candidate = node;
+            var tail1 = node.Next.Next ?? ChunkNode.CreateFictiveNode();
+            var candidate = node;
 
-                Min<int> min = new(ChunkNode.CalculateWeight(options.MaxLimit, tail, current, follow));
-                foreach (var (trimLeft, joinRight) in current.GetMinGarbageCandidates(options, follow))
+            Min<int> min = new(node.CalculateWeight(options.MaxLimit));
+            foreach (var (trimLeft1, joinRight1) in current.GetMinGarbageCandidates(options, follow, rearrange))
+            {
+                if (joinRight1.ExcessLimit(options.MaxLimit, out var taken, out var rest))
                 {
-                    if (joinRight.ExcessLimit(options.MaxLimit, out var taken, out var rest))
+                    foreach (var (trimLeft2, joinRight2) in taken.GetMinGarbageCandidates(options, rest, rearrange))
                     {
-                        if (trimLeft.Length != 0)
+                        var tail2 = PackageRecursive(preparer.Prepare(tail1.InsertBefore(joinRight2)), true);
+                        var temp = tail2
+                            .InsertBefore(trimLeft1)
+                            .InsertBefore(trimLeft2);
+                        if (min.TryChange(temp.CalculateWeight(options.MaxLimit)))
                         {
-                            if (rearrange)
-                            {
-                                continue;
-                            }
-                            foreach (var (tl1, jr1) in new Chunk(taken).GetMinGarbageCandidates(options, rest))
-                            {
-                                var next = PackageRecursive(options, ChunkNodePreparer.Prepare(options, [..jr1, ..tail?.GetChunks().SelectMany(x => x) ?? []]).Head, true);
-                                if (min.TryChange(ChunkNode.CalculateWeight(options.MaxLimit, next, trimLeft, tl1)))
-                                {
-                                    //insert before
-                                    candidate = ChunkNode.CreateHead(next, trimLeft, tl1);
-                                }
-                            }
-                        }
-                    }
-                    else
-                    {
-                        if (min.TryChange(ChunkNode.CalculateWeight(options.MaxLimit, tail, trimLeft, joinRight)))
-                        {
-                            candidate = ChunkNode.CreateHead(tail, trimLeft, joinRight);
+                            candidate = temp;
                         }
                     }
                 }
-                node.Replace(candidate);
+                else if (trimLeft1.Length != 0)
+                {
+                    var temp = tail1
+                        .InsertBefore(trimLeft1)
+                        .InsertBefore(joinRight1);
+                    if (min.TryChange(temp.CalculateWeight(options.MaxLimit)))
+                    {
+                        candidate = temp;
+                    }
+                }
             }
+            node.Replace(candidate);
             node = node.Next;
         }
         return root;

@@ -1,6 +1,6 @@
 ﻿namespace register_packager;
 
-internal class ChunkNode
+internal class ChunkNode(Chunk chunk)
 {
     internal static ChunkNode CreateFictiveNode() => new(Chunk.Empty);
 
@@ -24,12 +24,7 @@ internal class ChunkNode
         return node;
     }
 
-    private ChunkNode(Chunk chunk)
-    {
-        Chunk = chunk;
-    }
-
-    internal Chunk Chunk { get; private set; }
+    internal Chunk Chunk { get; private set; } = chunk;
     internal ChunkNode? Next { get; private set; }
 
     internal void Append(Chunk chunk)
@@ -40,6 +35,15 @@ internal class ChunkNode
             current = current.Next;
         }
         current.Next = new(chunk);
+    }
+
+    internal ChunkNode InsertBefore(Chunk chunk)
+    {
+        var node = new ChunkNode(chunk)
+        {
+            Next = this
+        };
+        return node;
     }
 
     internal void Replace(ChunkNode chunkNode)
@@ -65,20 +69,10 @@ internal class ChunkNode
         }
         return (depth, garbage);
     }
-    internal static int CalculateWeight(int maxLimit, ChunkNode? tail, params Chunk[] chunks)
+
+    internal int CalculateWeight(int maxLimit)
     {
-        var (depth, garbage) = tail?.CalculateTail() ?? (0, 0);
-        foreach (var chunk in chunks)
-        {
-            if (chunk.Length != 0)
-            {
-                garbage += chunk.CalculateGarbage();
-            }
-            else
-            {
-                depth--;
-            }
-        }
+        var (depth, garbage) = CalculateTail();
         return garbage + GetNumberWithZeros(maxLimit) * Math.Max(0, depth);
     }
 
