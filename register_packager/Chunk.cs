@@ -25,7 +25,7 @@ internal readonly struct Chunk(int[] registers) : IEnumerable<int>
     internal List<ChunkPair> GetMinGarbageCandidates(ChunkPreparerOptions options, Chunk second, bool rearrange)
     {
         List<ChunkPair> buffer = new(_registers.Length);
-        Min<int> min = new(CalculateDistanceInternal(_registers) + CalculateDistanceInternal(second._registers));
+        Min<int> min = new(CalculateDistanceInternal(_registers) + CalculateDistanceInternal(second._registers), Comparer<int>.Default);
         ReadOnlySpan<int> concat = [.._registers, ..second._registers];
         for (var splitPoint = _registers.Length - 1; splitPoint >= 0; splitPoint--)
         {

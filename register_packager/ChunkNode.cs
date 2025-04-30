@@ -46,7 +46,7 @@ internal class ChunkNode(Chunk chunk)
         Chunk = chunkNode.Chunk;
         Next = chunkNode.Next;
     }
-    internal int CalculateWeight(int maxLimit)
+    internal (int Depth, int Distance) CalculateWeight()
     {
         var distance = 0;
         var depth = 0;
@@ -60,7 +60,7 @@ internal class ChunkNode(Chunk chunk)
             }
             current = current.Next;
         }
-        return distance + GetNumberWithZeros(maxLimit) * Math.Max(0, depth);
+        return (depth, distance);
     }
     internal IEnumerable<Chunk> GetChunks()
     {
@@ -74,6 +74,4 @@ internal class ChunkNode(Chunk chunk)
             current = current.Next;
         }
     }
-
-    private static int GetNumberWithZeros(int x) => (int)Math.Pow(10, (int)Math.Floor(Math.Log10(x)) + 1);
 }

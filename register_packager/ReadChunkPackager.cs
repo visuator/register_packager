@@ -3,6 +3,14 @@
 internal class ReadChunkPackager(ChunkPreparerOptions options, ChunkNodePreparer preparer)
 {
     internal ChunkNode Package(ChunkNode head) => PackageRecursive(head, false);
+    private static readonly Comparer<(int Depth, int Distance)> WeightComparer = Comparer<(int Depth, int Distance)>.Create((x, y) =>
+    {
+        if (y.Depth <= x.Depth && y.Distance < x.Distance)
+        {
+            return 1;
+        }
+        return -1;
+    });
     private ChunkNode PackageRecursive(ChunkNode head, bool rearrange)
     {
         var node = head;
@@ -14,13 +22,13 @@ internal class ReadChunkPackager(ChunkPreparerOptions options, ChunkNodePreparer
             var tail = node.Next.Next ?? ChunkNode.CreateFictiveNode();
             var candidate = node;
 
-            Min<int> min = new(node.CalculateWeight(options.MaxLimit));
+            Min<(int Depth, int Distance)> min = new(node.CalculateWeight(), WeightComparer);
             foreach (var (trimLeft, joinRight) in current.GetMinGarbageCandidates(options, follow, rearrange))
             {
                 if (joinRight.ExcessLimit(options.MaxLimit))
                 {
                     var next = PackageRecursive(preparer.Prepare(tail.InsertBefore(joinRight)), true).InsertBefore(trimLeft);
-                    if (min.TryChange(next.CalculateWeight(options.MaxLimit)))
+                    if (min.TryChange(next.CalculateWeight()))
                     {
                         candidate = next;
                     }
@@ -30,7 +38,7 @@ internal class ReadChunkPackager(ChunkPreparerOptions options, ChunkNodePreparer
                     var temp = tail
                         .InsertBefore(joinRight)
                         .InsertBefore(trimLeft);
-                    if (min.TryChange(temp.CalculateWeight(options.MaxLimit)))
+                    if (min.TryChange(temp.CalculateWeight()))
                     {
                         candidate = temp;
                     }
