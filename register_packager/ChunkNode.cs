@@ -24,14 +24,11 @@ internal class ChunkNode(Chunk chunk)
     }
     internal Chunk Chunk { get; private set; } = chunk;
     internal ChunkNode? Next { get; private set; }
-    internal void Append(Chunk chunk)
+    internal ChunkNode Append(Chunk chunk)
     {
-        var current = this;
-        while (current.Next is not null)
-        {
-            current = current.Next;
-        }
-        current.Next = new(chunk);
+        var node = new ChunkNode(chunk);
+        Next = node;
+        return node;
     }
     internal ChunkNode InsertBefore(Chunk chunk)
     {

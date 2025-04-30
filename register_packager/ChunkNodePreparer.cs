@@ -17,7 +17,9 @@ internal class ChunkNodePreparer(ChunkPreparerOptions options)
     {
         ArgumentOutOfRangeException.ThrowIfZero(registers.Length);
 
-        var head = ChunkNode.CreateFictiveNode();
+        var node = ChunkNode.CreateFictiveNode();
+        var head = node;
+
         var chunkStart = 0;
         var currentLimit = 1;
         var index = 1;
@@ -25,7 +27,7 @@ internal class ChunkNodePreparer(ChunkPreparerOptions options)
         {
             if (options.Legacy_CoilsCompatibility && !Chunk.IsLegacy_CoilsCompatible(registers[chunkStart..(index + 1)]))
             {
-                head.Append(registers[chunkStart..index]);
+                node = node.Append(registers[chunkStart..index]);
                 currentLimit = 1;
                 chunkStart = index;
             }
@@ -35,14 +37,14 @@ internal class ChunkNodePreparer(ChunkPreparerOptions options)
                 currentLimit += distance;
                 if (currentLimit > options.MaxLimit || !options.ReadOnlyMode && distance > 1)
                 {
-                    head.Append(registers[chunkStart..index]);
+                    node = node.Append(registers[chunkStart..index]);
                     currentLimit = 1;
                     chunkStart = index;
                 }
             }
             index++;
         }
-        head.Append(registers[chunkStart..index]);
+        node.Append(registers[chunkStart..index]);
         ArgumentNullException.ThrowIfNull(head.Next);
 
         return head.Next;
