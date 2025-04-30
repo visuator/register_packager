@@ -10,7 +10,7 @@ internal class ChunkNode
         for (var i = chunks.Length - 1; i >= 0; i--)
         {
             var chunk = chunks[i];
-            if (chunk.Registers.Length != 0)
+            if (chunk.Length != 0)
             {
                 node = new ChunkNode(chunk)
                 {
@@ -57,7 +57,7 @@ internal class ChunkNode
         while (current is not null)
         {
             garbage += current.Chunk.CalculateGarbage();
-            if (current.Chunk.Registers.Length != 0)
+            if (current.Chunk.Length != 0)
             {
                 depth++;
             }
@@ -70,7 +70,7 @@ internal class ChunkNode
         var (depth, garbage) = tail?.CalculateTail() ?? (0, 0);
         foreach (var chunk in chunks)
         {
-            if (chunk.Registers.Length != 0)
+            if (chunk.Length != 0)
             {
                 garbage += chunk.CalculateGarbage();
             }
@@ -87,7 +87,7 @@ internal class ChunkNode
         var current = this;
         while (current is not null)
         {
-            if (current.Chunk.Registers.Length != 0)
+            if (current.Chunk.Length != 0)
             {
                 yield return current.Chunk;
             }

@@ -18,7 +18,7 @@ public class ChunkPackager
                 ReadChunkNodeResult rr => ReadChunkPackager.Package(_options, rr.Head).GetChunks(),
                 _ => throw new InvalidOperationException("unknown mode")
             })
-            .Select(x => x.Registers)
+            .Select(x => x.ToArray())
             .ToArray();
     }
 }

@@ -6,52 +6,47 @@ internal class ReadChunkPackager
     private static ChunkNode PackageRecursive(ChunkPreparerOptions options, ChunkNode root, bool rearrange)
     {
         var node = root;
-        while (node is not null)
+        while (node?.Next != null)
         {
             var current = node.Chunk;
-            if (node.Next is not null)
-            {
-                var follow = node.Next.Chunk;
-                if (follow.Registers.Length != 0)
-                {
-                    var tail = node.Next.Next;
-                    var candidate = node;
+            var follow = node.Next.Chunk;
 
-                    Min<int> min = new(ChunkNode.CalculateWeight(options.MaxLimit, tail, current, follow));
-                    foreach (var (trimLeft, joinRight) in current.GetMinGarbageCandidates(options, follow))
+            if (follow.Length != 0)
+            {
+                var tail = node.Next.Next;
+                var candidate = node;
+
+                Min<int> min = new(ChunkNode.CalculateWeight(options.MaxLimit, tail, current, follow));
+                foreach (var (trimLeft, joinRight) in current.GetMinGarbageCandidates(options, follow))
+                {
+                    if (joinRight.ExcessLimit(options.MaxLimit, out var taken, out var rest))
                     {
-                        if (joinRight.ExcessLimit(options.MaxLimit, out var taken, out var rest))
+                        if (trimLeft.Length != 0)
                         {
-                            if (trimLeft.Registers.Length != 0)
+                            if (rearrange)
                             {
-                                if (rearrange)
-                                {
-                                    continue;
-                                }
-                                foreach (var (tl1, jr1) in new Chunk(taken).GetMinGarbageCandidates(options, rest))
-                                {
-                                    var next = PackageRecursive(options, ChunkNodePreparer.Prepare(options, [..jr1.Registers, ..tail?.GetChunks().SelectMany(x => x.Registers) ?? []]).Head, true);
-                                    if (min.TryChange(ChunkNode.CalculateWeight(options.MaxLimit, next, trimLeft, tl1)))
-                                    {
-                                        candidate = ChunkNode.CreateHead(next, trimLeft, tl1);
-                                    }
-                                }
+                                continue;
                             }
-                        }
-                        else
-                        {
-                            if (min.TryChange(ChunkNode.CalculateWeight(options.MaxLimit, tail, trimLeft, joinRight)))
+                            foreach (var (tl1, jr1) in new Chunk(taken).GetMinGarbageCandidates(options, rest))
                             {
-                                candidate = ChunkNode.CreateHead(tail, trimLeft, joinRight);
+                                var next = PackageRecursive(options, ChunkNodePreparer.Prepare(options, [..jr1, ..tail?.GetChunks().SelectMany(x => x) ?? []]).Head, true);
+                                if (min.TryChange(ChunkNode.CalculateWeight(options.MaxLimit, next, trimLeft, tl1)))
+                                {
+                                    //insert before
+                                    candidate = ChunkNode.CreateHead(next, trimLeft, tl1);
+                                }
                             }
                         }
                     }
-                    node.Replace(candidate);
+                    else
+                    {
+                        if (min.TryChange(ChunkNode.CalculateWeight(options.MaxLimit, tail, trimLeft, joinRight)))
+                        {
+                            candidate = ChunkNode.CreateHead(tail, trimLeft, joinRight);
+                        }
+                    }
                 }
-            }
-            else
-            {
-                return root;
+                node.Replace(candidate);
             }
             node = node.Next;
         }

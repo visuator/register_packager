@@ -19,7 +19,8 @@ public class Fixture
             x.ReadOnlyMode = true;
         }).Package(registers);
         var greedy = ChunkNodePreparer.Prepare(new ChunkPreparerOptions() { Legacy_CoilsCompatibility = legacy_coilsCompatibility, MaxLimit = maxLimit, ReadOnlyMode = true }, registers).Head.GetChunks().ToArray();
-        
+
+        //File.Delete("registers.txt");
         //File.WriteAllText("registers.txt", string.Join(", ", registers));
         //_testOutputHelper.WriteLine($"[{string.Join(", ", registers)}]");
         //_testOutputHelper.WriteLine(string.Empty);
@@ -149,7 +150,7 @@ public class Tests : IClassFixture<Fixture>
     
     [Theory]
     [InlineData(1024,  true, 16394)]
-    [InlineData(16,  false, 256)]
+    [InlineData(256,  false, 16394)]
     public void Should_Handle_Large_Amount_Of_Registers_Better_Than_Straightforward_Greedy(int maxLimit, bool legacy_coilsCompatibility, int count)
     {
         var registers = Enumerable.Range(0, count)
@@ -165,5 +166,12 @@ public class Tests : IClassFixture<Fixture>
                 Chunk.IsLegacy_CoilsCompatible(x).Should().BeTrue();
             });
         }
+    }
+
+    [Fact]
+    public void Registers16394()
+    {
+        var registers = File.ReadAllText("registers.txt").Split(", ").Select(int.Parse).ToArray();
+        _fixture.Run(256, false, registers);
     }
 }
