@@ -1,13 +1,13 @@
 ﻿namespace register_packager;
 
-internal struct Min<T>(T initial) where T : IComparable<T>
+internal struct Min<T>(T initial, IComparer<T> comparer) where T : IComparable<T>
 {
-    internal T Value { get; private set; } = initial;
+    private T _value = initial;
     internal bool TryChange(T newValue)
     {
-        if (Value.CompareTo(newValue) >= 1)
+        if (comparer.Compare(_value, newValue) >= 1)
         {
-            Value = newValue;
+            _value = newValue;
             return true;
         }
         return false;
