@@ -1,4 +1,7 @@
-﻿namespace register_packager;
+﻿using System.Diagnostics;
+using System.Text;
+
+namespace register_packager;
 
 internal class ChunkNode(Chunk chunk)
 {
@@ -22,6 +25,7 @@ internal class ChunkNode(Chunk chunk)
 
         return node;
     }
+    [DebuggerHidden]
     internal Chunk Chunk { get; private set; } = chunk;
     internal ChunkNode? Next { get; private set; }
     internal ChunkNode Append(Chunk chunk)
@@ -70,5 +74,25 @@ internal class ChunkNode(Chunk chunk)
             }
             current = current.Next;
         }
+    }
+    public override string ToString()
+    {
+        const int MAX_DEPTH = 2;
+
+        StringBuilder sb = new();
+        var current = this;
+
+        var depth = 1;
+        while (current is not null && depth <= MAX_DEPTH)
+        {
+            sb.Append(current.Chunk.ToString());
+            if (current.Next is not null)
+            {
+                sb.Append(" -> ");
+            }
+            current = current.Next;
+            depth++;
+        }
+        return sb.ToString();
     }
 }

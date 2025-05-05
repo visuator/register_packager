@@ -2,12 +2,12 @@
 
 internal struct Min<T>(T initial, IComparer<T> comparer) where T : IComparable<T>
 {
-    internal T Value { get; private set; } = initial;
+    private T _value = initial;
     internal bool TryChange(T newValue)
     {
-        if (comparer.Compare(Value, newValue) >= 1)
+        if (comparer.Compare(_value, newValue) >= 1)
         {
-            Value = newValue;
+            _value = newValue;
             return true;
         }
         return false;

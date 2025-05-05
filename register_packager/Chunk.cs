@@ -1,9 +1,10 @@
 ﻿using System.Collections;
+using System.Text;
 
 namespace register_packager;
 
-internal readonly record struct ChunkPair(Chunk TrimLeft, Chunk JoinRight);
-internal readonly struct Chunk(int[] registers) : IEnumerable<int>
+public readonly record struct ChunkPair(Chunk TrimLeft, Chunk JoinRight);
+public readonly struct Chunk(int[] registers) : IEnumerable<int>
 {
     private readonly int[] _registers = registers;
 
@@ -29,6 +30,8 @@ internal readonly struct Chunk(int[] registers) : IEnumerable<int>
         ReadOnlySpan<int> concat = [.._registers, ..second._registers];
         for (var splitPoint = _registers.Length - 1; splitPoint >= 0; splitPoint--)
         {
+            //todo: if current = follow exclude this combination
+            //todo: save chunk distance info
             var trimLeft = concat[..splitPoint];
             var joinRight = concat[splitPoint..];
 
@@ -40,8 +43,8 @@ internal readonly struct Chunk(int[] registers) : IEnumerable<int>
             {
                 continue;
             }
-            var garbage = CalculateDistanceInternal(trimLeft) + CalculateDistanceInternal(joinRight);
-            if (min.TryChange(garbage) || trimLeft.Length == 0)
+            var distance = CalculateDistanceInternal(trimLeft) + CalculateDistanceInternal(joinRight);
+            if (min.TryChange(distance) || trimLeft.Length == 0)
             {
                 buffer.Add(new(trimLeft, joinRight));
             }
@@ -50,4 +53,18 @@ internal readonly struct Chunk(int[] registers) : IEnumerable<int>
     }
     internal int Length => _registers.Length;
     internal int[] AsArray() => _registers;
+    public override string ToString()
+    {
+        const int MAX_LENGTH = 8;
+
+        StringBuilder sb = new();
+        var query = _registers.Select(x => x.ToString()).AsQueryable();
+        if (_registers.Length > MAX_LENGTH)
+        {
+            query = query.Take(MAX_LENGTH);
+            query = query.Append("\u2026");
+        }
+        sb.AppendJoin(", ", query);
+        return $"[{sb}]";
+    }
 }
