@@ -72,7 +72,7 @@ public class Fixture
         hash.GetCurrentHash(buffer);
         return new Guid(buffer, true);
     }
-    private static void DefaultAsserts(ChunkPreparerOptions options, int[] registers, Chunk[] greedyChunks, Chunk[] chunks)
+    private void DefaultAsserts(ChunkPreparerOptions options, int[] registers, Chunk[] greedyChunks, Chunk[] chunks)
     {
         chunks.Should().NotBeEmpty();
         
@@ -84,7 +84,7 @@ public class Fixture
 
         if (flattenChunks.Length == greedyChunks.Length)
         {
-            chunks.Sum(x => CalculateDistance(x.AsArray())).Should().BeLessThanOrEqualTo(greedyChunks.Sum(x => x.CalculateDistance()));
+            chunks.Sum(x => CalculateGarbage(x.AsArray())).Should().BeLessThanOrEqualTo(greedyChunks.Sum(x => CalculateGarbage(x.AsArray())));
         }
 
         if (options.Legacy_CoilsCompatibility)
@@ -202,17 +202,9 @@ public class Tests : IClassFixture<Fixture>
     }
 
     [Fact]
-    public void Test_Case_1()
-    {
-        var registers = File.ReadAllText("registers.txt").Split(", ").Select(int.Parse).OrderBy(x => x).ToArray();
-
-        _fixture.Run(125, false, registers);
-    }
-    
-    [Fact]
     public async Task Should_Handle_Large_Amount_Of_Registers_Better_Than_Straightforward_Greedy_Default()
     {
-        var registers = await _fixture.GetOrGenerateRegisters(new(10_000));
+        var registers = await _fixture.GetOrGenerateRegisters(new(100_000));
         var (greedy, result) = _fixture.Run(125, false, registers);
 
         var message = $"{JoinChunks(greedy)} -> [{SumGarbage(greedy)}]\n" +

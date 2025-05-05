@@ -3,48 +3,43 @@
 internal class ReadChunkPackager(ChunkPreparerOptions options, ChunkNodePreparer preparer)
 {
     internal ChunkNode Package(ChunkNode head) => PackageRecursive(head, false);
-    private static readonly Comparer<(int Depth, int Distance)> WeightComparer = Comparer<(int Depth, int Distance)>.Create((x, y) =>
-    {
-        if (y.Depth <= x.Depth && y.Distance < x.Distance)
-        {
-            return 1;
-        }
-        return -1;
-    });
     private ChunkNode PackageRecursive(ChunkNode head, bool rearrange)
     {
         var node = head;
         while (node?.Next != null)
         {
-            var current = node.Chunk;
             var follow = node.Next.Chunk;
 
-            var tail = node.Next.Next ?? ChunkNode.CreateFictiveNode();
-            var candidate = node;
+            if (follow.Length == 0)
+            {
+                break;
+            }
 
-            Min<(int Depth, int Distance)> min = new(node.CalculateWeight(), WeightComparer);
-            foreach (var (trimLeft, joinRight) in current.GetMinGarbageCandidates(options, follow, rearrange))
+            var current = node.Chunk;
+            var tail = node.Next.Next ?? ChunkNode.CreateFictiveNode();
+
+            var (garbageInitial, candidates) = current.GetMinGarbageCandidates(options, follow, rearrange);
+            Min<int, ChunkNode> min = new(garbageInitial, node);
+            foreach (var (trimLeft, joinRight, garbage) in candidates)
             {
                 if (joinRight.ExcessLimit(options.MaxLimit))
                 {
                     var next = PackageRecursive(preparer.Prepare(tail.InsertBefore(joinRight)), true).InsertBefore(trimLeft);
-                    if (min.TryChange(next.CalculateWeight()))
+                    var (depthNext, garbageNext) = next.CalculateWeight();
+                    if (depthNext <= node.CalculateWeight().Depth)
                     {
-                        candidate = next;
+                        min.TryChange(garbageNext, next);
                     }
                 }
                 else if (trimLeft.Length != 0)
                 {
-                    var temp = tail
+                    var next = tail
                         .InsertBefore(joinRight)
                         .InsertBefore(trimLeft);
-                    if (min.TryChange(temp.CalculateWeight()))
-                    {
-                        candidate = temp;
-                    }
+                    min.TryChange(garbage, next);
                 }
             }
-            node.Replace(candidate);
+            node.Replace(min.BestCandidate);
             node = node.Next;
         }
         return head;
