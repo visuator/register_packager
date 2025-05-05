@@ -3,7 +3,7 @@ using System.Text;
 
 namespace register_packager;
 
-public readonly record struct ChunkPair(Chunk TrimLeft, Chunk JoinRight);
+public readonly record struct ChunkPair(Chunk TrimLeft, Chunk JoinRight, int Garbage);
 public readonly struct Chunk(int[] registers) : IEnumerable<int>
 {
     private readonly int[] _registers = registers;
@@ -20,13 +20,26 @@ public readonly struct Chunk(int[] registers) : IEnumerable<int>
     public IEnumerator<int> GetEnumerator() => _registers.AsEnumerable().GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     internal static Chunk Empty => new([]);
-    internal int CalculateDistance() => CalculateDistanceInternal(_registers);
+    internal int CalculateGarbage() => CalculateGarbageInternal(_registers);
+    internal static int CalculateGarbageInternal(ReadOnlySpan<int> registers)
+    {
+        /*var garbage = 0;
+        var index = 1;
+        while (index < registers.Length)
+        {
+            garbage += registers[index] - registers[index - 1] - 1;
+            index++;
+        }
+        return garbage;*/
+        return CalculateDistanceInternal(registers);
+    }
     internal bool ExcessLimit(int maxLimit) => CalculateDistanceInternal(_registers) > maxLimit;
     internal static bool IsLegacy_CoilsCompatible(ReadOnlySpan<int> registers) => IsLegacy_CoilsCompatibleInternal(registers);
-    internal List<ChunkPair> GetMinGarbageCandidates(ChunkPreparerOptions options, Chunk second, bool rearrange)
+    internal (int GarbageInitial, List<ChunkPair>) GetMinGarbageCandidates(ChunkPreparerOptions options, Chunk second, bool rearrange)
     {
         List<ChunkPair> buffer = new(_registers.Length);
-        Min<int> min = new(CalculateDistanceInternal(_registers) + CalculateDistanceInternal(second._registers), Comparer<int>.Default);
+        var garbageInitial = CalculateGarbageInternal(_registers) + CalculateGarbageInternal(second._registers);
+        Min<int> min = new(garbageInitial);
         ReadOnlySpan<int> concat = [.._registers, ..second._registers];
         for (var splitPoint = _registers.Length - 1; splitPoint >= 0; splitPoint--)
         {
@@ -43,28 +56,15 @@ public readonly struct Chunk(int[] registers) : IEnumerable<int>
             {
                 continue;
             }
-            var distance = CalculateDistanceInternal(trimLeft) + CalculateDistanceInternal(joinRight);
-            if (min.TryChange(distance) || trimLeft.Length == 0)
+            var garbage = CalculateGarbageInternal(trimLeft) + CalculateGarbageInternal(joinRight);
+            if (min.TryChange(garbage) || trimLeft.Length == 0)
             {
-                buffer.Add(new(trimLeft, joinRight));
+                buffer.Add(new(trimLeft, joinRight, garbage));
             }
         }
-        return buffer;
+        return (garbageInitial, buffer);
     }
     internal int Length => _registers.Length;
     internal int[] AsArray() => _registers;
-    public override string ToString()
-    {
-        const int MAX_LENGTH = 8;
-
-        StringBuilder sb = new();
-        var query = _registers.Select(x => x.ToString()).AsQueryable();
-        if (_registers.Length > MAX_LENGTH)
-        {
-            query = query.Take(MAX_LENGTH);
-            query = query.Append("\u2026");
-        }
-        sb.AppendJoin(", ", query);
-        return $"[{sb}]";
-    }
+    public override string ToString() => $"[{string.Join(", ", _registers)}]";
 }

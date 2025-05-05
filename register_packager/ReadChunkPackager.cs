@@ -1,60 +1,47 @@
 ﻿namespace register_packager;
 
-internal class ReadChunkPackager
+internal class ReadChunkPackager(ChunkPreparerOptions options, ChunkNodePreparer preparer)
 {
-    public static ChunkNode Package(ChunkPreparerOptions options, ChunkNode root) => PackageRecursive(options, root, false);
-    private static ChunkNode PackageRecursive(ChunkPreparerOptions options, ChunkNode root, bool rearrange)
+    internal ChunkNode Package(ChunkNode head) => PackageRecursive(head, false);
+    private ChunkNode PackageRecursive(ChunkNode head, bool rearrange)
     {
-        var node = root;
-        while (node is not null)
+        var node = head;
+        while (node?.Next != null)
         {
-            var current = node.Chunk;
-            if (node.Next is not null)
-            {
-                var follow = node.Next.Chunk;
-                if (follow.Registers.Length != 0)
-                {
-                    var tail = node.Next.Next;
-                    var candidate = node;
+            var follow = node.Next.Chunk;
 
-                    Min<int> min = new(ChunkNode.CalculateWeight(options.MaxLimit, tail, current, follow));
-                    foreach (var (trimLeft, joinRight) in current.GetMinGarbageCandidates(options, follow))
+            if (follow.Length == 0)
+            {
+                break;
+            }
+
+            var current = node.Chunk;
+            var tail = node.Next.Next ?? ChunkNode.CreateFictiveNode();
+
+            var (garbageInitial, candidates) = current.GetMinGarbageCandidates(options, follow, rearrange);
+            Min<int, ChunkNode> min = new(garbageInitial, node);
+            foreach (var (trimLeft, joinRight, garbage) in candidates)
+            {
+                if (joinRight.ExcessLimit(options.MaxLimit))
+                {
+                    var next = PackageRecursive(preparer.Prepare(tail.InsertBefore(joinRight)), true).InsertBefore(trimLeft);
+                    var (depthNext, garbageNext) = next.CalculateWeight();
+                    if (depthNext <= node.CalculateWeight().Depth)
                     {
-                        if (joinRight.ExcessLimit(options.MaxLimit, out var taken, out var rest))
-                        {
-                            if (trimLeft.Registers.Length != 0)
-                            {
-                                if (rearrange)
-                                {
-                                    continue;
-                                }
-                                foreach (var (tl1, jr1) in new Chunk(taken).GetMinGarbageCandidates(options, rest))
-                                {
-                                    var next = PackageRecursive(options, ChunkNodePreparer.Prepare(options, [..jr1.Registers, ..tail?.GetChunks().SelectMany(x => x.Registers) ?? []]).Head, true);
-                                    if (min.TryChange(ChunkNode.CalculateWeight(options.MaxLimit, next, trimLeft, tl1)))
-                                    {
-                                        candidate = ChunkNode.CreateHead(next, trimLeft, tl1);
-                                    }
-                                }
-                            }
-                        }
-                        else
-                        {
-                            if (min.TryChange(ChunkNode.CalculateWeight(options.MaxLimit, tail, trimLeft, joinRight)))
-                            {
-                                candidate = ChunkNode.CreateHead(tail, trimLeft, joinRight);
-                            }
-                        }
+                        min.TryChange(garbageNext, next);
                     }
-                    node.Replace(candidate);
+                }
+                else if (trimLeft.Length != 0)
+                {
+                    var next = tail
+                        .InsertBefore(joinRight)
+                        .InsertBefore(trimLeft);
+                    min.TryChange(garbage, next);
                 }
             }
-            else
-            {
-                return root;
-            }
+            node.Replace(min.BestCandidate);
             node = node.Next;
         }
-        return root;
+        return head;
     }
 }

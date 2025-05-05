@@ -25,7 +25,6 @@ internal class ChunkNode(Chunk chunk)
 
         return node;
     }
-    [DebuggerHidden]
     internal Chunk Chunk { get; private set; } = chunk;
     internal ChunkNode? Next { get; private set; }
     internal ChunkNode Append(Chunk chunk)
@@ -47,21 +46,21 @@ internal class ChunkNode(Chunk chunk)
         Chunk = chunkNode.Chunk;
         Next = chunkNode.Next;
     }
-    internal (int Depth, int Distance) CalculateWeight()
+    internal (int Depth, int Garbage) CalculateWeight()
     {
-        var distance = 0;
+        var garbage = 0;
         var depth = 0;
         var current = this;
         while (current is not null)
         {
-            distance += current.Chunk.CalculateDistance();
             if (current.Chunk.Length != 0)
             {
                 depth++;
+                garbage += current.Chunk.CalculateGarbage();
             }
             current = current.Next;
         }
-        return (depth, distance);
+        return (depth, garbage);
     }
     internal IEnumerable<Chunk> GetChunks()
     {
@@ -77,13 +76,9 @@ internal class ChunkNode(Chunk chunk)
     }
     public override string ToString()
     {
-        const int MAX_DEPTH = 2;
-
         StringBuilder sb = new();
         var current = this;
-
-        var depth = 1;
-        while (current is not null && depth <= MAX_DEPTH)
+        while (current is not null)
         {
             sb.Append(current.Chunk.ToString());
             if (current.Next is not null)
@@ -91,7 +86,6 @@ internal class ChunkNode(Chunk chunk)
                 sb.Append(" -> ");
             }
             current = current.Next;
-            depth++;
         }
         return sb.ToString();
     }
