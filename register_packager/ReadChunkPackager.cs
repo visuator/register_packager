@@ -2,10 +2,12 @@
 
 internal class ReadChunkPackager(ChunkPreparerOptions options, ChunkNodePreparer preparer)
 {
-    internal ChunkNode Package(ChunkNode head) => PackageRecursive(head, false);
-    private ChunkNode PackageRecursive(ChunkNode head, bool rearrange)
+    internal ChunkNode Package(ReadChunkNodeResult read) => PackageRecursive(read, false).Read.Head;
+    private (int Garbage, ReadChunkNodeResult Read) PackageRecursive(ReadChunkNodeResult read, bool rearrange)
     {
-        var node = head;
+        var node = read.Head;
+        var depth = read.Depth;
+        var garbage = 0;
         while (node?.Next != null)
         {
             var follow = node.Next.Chunk;
@@ -16,32 +18,44 @@ internal class ReadChunkPackager(ChunkPreparerOptions options, ChunkNodePreparer
             }
 
             var current = node.Chunk;
-            var tail = node.Next.Next ?? ChunkNode.CreateFictiveNode();
+            var tail = node.Next.Next ?? new ChunkNode(Chunk.Empty);
 
             var (garbageInitial, candidates) = current.GetMinGarbageCandidates(options, follow, rearrange);
-            Min<int, ChunkNode> min = new(garbageInitial, node);
-            foreach (var (trimLeft, joinRight, garbage) in candidates)
+
+            Min<int> min = new(garbageInitial);
+            var candidate = node;
+            foreach (var (trimLeft, joinRight, garbageCandidate) in candidates)
             {
-                if (joinRight.ExcessLimit(options.MaxLimit))
+                if (joinRight.Distance > options.MaxLimit)
                 {
-                    var next = PackageRecursive(preparer.Prepare(tail.InsertBefore(joinRight)), true).InsertBefore(trimLeft);
-                    var (depthNext, garbageNext) = next.CalculateWeight();
-                    if (depthNext <= node.CalculateWeight().Depth)
+                    var chunks = preparer.Prepare(tail.InsertBefore(joinRight));
+                    if (chunks.Depth <= depth)
                     {
-                        min.TryChange(garbageNext, next);
+                        var (garbageNext, next) = PackageRecursive(chunks, true);
+                        if (min.TryChange(garbageNext))
+                        {
+                            candidate = next.Head.InsertBefore(trimLeft);
+                        }
                     }
                 }
                 else if (trimLeft.Length != 0)
                 {
-                    var next = tail
-                        .InsertBefore(joinRight)
-                        .InsertBefore(trimLeft);
-                    min.TryChange(garbage, next);
+                    if (min.TryChange(garbageCandidate))
+                    {
+                        candidate = tail
+                            .InsertBefore(joinRight)
+                            .InsertBefore(trimLeft);
+                    }
                 }
             }
-            node.Replace(min.BestCandidate);
+            if (candidate != node)
+            {
+                node.Replace(candidate);
+                garbage += min.Value;
+            }
             node = node.Next;
+            depth--;
         }
-        return head;
+        return (garbage, read);
     }
 }

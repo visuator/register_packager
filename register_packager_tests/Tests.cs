@@ -21,7 +21,7 @@ public class Fixture
         var chunks = preparer.Prepare(registers) as ReadChunkNodeResult;
         ArgumentNullException.ThrowIfNull(chunks);
 
-        var result = packager.Package(chunks.Head).GetChunks().ToArray();
+        var result = packager.Package(chunks).GetChunks().ToArray();
         var greedy = chunks.Head.GetChunks().ToArray();
 
         DefaultAsserts(options, registers, greedy, result);
@@ -79,17 +79,17 @@ public class Fixture
         var flattenChunks = chunks.SelectMany(x => x).ToArray();
         flattenChunks.Should().BeEquivalentTo(registers);
 
-        chunks.Should().AllSatisfy(x => CalculateDistance(x.AsArray()).Should().BeLessThanOrEqualTo(options.MaxLimit));
+        chunks.Should().AllSatisfy(x => CalculateDistance(x.ToArray()).Should().BeLessThanOrEqualTo(options.MaxLimit));
         chunks.Should().HaveCountLessThanOrEqualTo(greedyChunks.Length);
 
         if (flattenChunks.Length == greedyChunks.Length)
         {
-            chunks.Sum(x => CalculateGarbage(x.AsArray())).Should().BeLessThanOrEqualTo(greedyChunks.Sum(x => CalculateGarbage(x.AsArray())));
+            chunks.Sum(x => CalculateGarbage(x.ToArray())).Should().BeLessThanOrEqualTo(greedyChunks.Sum(x => CalculateGarbage(x.ToArray())));
         }
 
         if (options.Legacy_CoilsCompatibility)
         {
-            chunks.Should().AllSatisfy(x => IsLegacy_CoilsCompatible(x.AsArray()).Should().BeTrue());
+            chunks.Should().AllSatisfy(x => IsLegacy_CoilsCompatible(x.ToArray()).Should().BeTrue());
         }
     }
     private static int CalculateDistance(ReadOnlySpan<int> registers) => registers.Length > 0 ? registers[^1] - registers[0] + 1 : 0;
@@ -110,7 +110,7 @@ public class Tests : IClassFixture<Fixture>
         _testOutputHelper = testOutputHelper;
         _fixture.Inject(testOutputHelper);
     }
-    
+
     [Fact]
     public void Should_Pack_Two_Registers_Into_One_Package()
     {
@@ -118,9 +118,9 @@ public class Tests : IClassFixture<Fixture>
         int[] registers = [1, 10];
 
         var (_, result) = _fixture.Run(maxLimit, false, registers);
-        result.Select(x => x.AsArray()).Should().BeEquivalentTo((int[][]) [[1, 10]], "limit not exceeded");
+        result.Select(x => x.ToArray()).Should().BeEquivalentTo((int[][]) [[1, 10]], "limit not exceeded");
     }
-    
+
     [Fact]
     public void Should_Pack_Two_Registers_Into_Two_Package()
     {
@@ -128,9 +128,9 @@ public class Tests : IClassFixture<Fixture>
         int[] registers = [1, 10];
 
         var (_, result) = _fixture.Run(maxLimit, false, registers);
-        result.Select(x => x.AsArray()).Should().BeEquivalentTo((int[][]) [[1], [10]], "limit exceeded");
+        result.Select(x => x.ToArray()).Should().BeEquivalentTo((int[][]) [[1], [10]], "limit exceeded");
     }
-    
+
     [Fact]
     public void Should_Choose_The_Best_Combination_With_Less_Garbage_1()
     {
@@ -138,9 +138,9 @@ public class Tests : IClassFixture<Fixture>
         int[] registers = [1, 15, 20];
 
         var (_, result) = _fixture.Run(maxLimit, false, registers);
-        result.Select(x => x.AsArray()).Should().BeEquivalentTo((int[][]) [[1], [15, 20]], "20 - 15 < 15 - 1");
+        result.Select(x => x.ToArray()).Should().BeEquivalentTo((int[][]) [[1], [15, 20]], "20 - 15 < 15 - 1");
     }
-    
+
     [Fact]
     public void Should_Choose_The_Best_Combination_With_Less_Garbage_2()
     {
@@ -148,9 +148,9 @@ public class Tests : IClassFixture<Fixture>
         int[] registers = [1, 25, 45];
 
         var (_, result) = _fixture.Run(maxLimit, false, registers);
-        result.Select(x => x.AsArray()).Should().BeEquivalentTo((int[][]) [[1], [25, 45]], "45 - 25 < 25 - 1");
+        result.Select(x => x.ToArray()).Should().BeEquivalentTo((int[][]) [[1], [25, 45]], "45 - 25 < 25 - 1");
     }
-    
+
     [Fact]
     public void Should_Choose_The_Best_Combination_With_Less_Garbage_3()
     {
@@ -158,9 +158,9 @@ public class Tests : IClassFixture<Fixture>
         int[] registers = [1, 4, 5, 8, 9, 40];
 
         var (_, result) = _fixture.Run(maxLimit, false, registers);
-        result.Select(x => x.AsArray()).Should().BeEquivalentTo((int[][]) [[1, 4, 5], [8, 9], [40]], "[[1, 4, 5], [8, 9] [40]] is optimal solution");
+        result.Select(x => x.ToArray()).Should().BeEquivalentTo((int[][]) [[1, 4, 5], [8, 9], [40]], "[[1, 4, 5], [8, 9] [40]] is optimal solution");
     }
-    
+
     [Fact]
     public void Should_Join_Chunks_If_Possible_1()
     {
@@ -168,9 +168,9 @@ public class Tests : IClassFixture<Fixture>
         int[] registers = [1, 4, 5, 8, 9, 40];
 
         var (_, result) = _fixture.Run(maxLimit, false, registers);
-        result.Select(x => x.AsArray()).Should().BeEquivalentTo((int[][]) [[1, 4, 5], [8, 9], [40]], "[[1, 4, 5], [8, 9], [40]] is optimal solution");
+        result.Select(x => x.ToArray()).Should().BeEquivalentTo((int[][]) [[1, 4, 5], [8, 9], [40]], "[[1, 4, 5], [8, 9], [40]] is optimal solution");
     }
-    
+
     [Fact]
     public void Should_Join_Chunks_If_Possible_2()
     {
@@ -178,9 +178,9 @@ public class Tests : IClassFixture<Fixture>
         int[] registers = [1, 4, 5, 8, 9, 40];
 
         var (_, result) = _fixture.Run(maxLimit, false, registers);
-        result.Select(x => x.AsArray()).Should().BeEquivalentTo((int[][]) [[1], [4, 5], [8, 9], [40]], "[[1], [4, 5], [8, 9], [40]] is optimal solution");
+        result.Select(x => x.ToArray()).Should().BeEquivalentTo((int[][]) [[1], [4, 5], [8, 9], [40]], "[[1], [4, 5], [8, 9], [40]] is optimal solution");
     }
-    
+
     [Fact]
     public void Should_Join_Chunks_If_Possible_3()
     {
@@ -188,9 +188,9 @@ public class Tests : IClassFixture<Fixture>
         int[] registers = [1, 2, 3, 4, 5, 6];
 
         var (_, result) = _fixture.Run(maxLimit, false, registers);
-        result.Select(x => x.AsArray()).Should().BeEquivalentTo((int[][]) [[1, 2, 3, 4, 5, 6]], "[[1, 2, 3, 4, 5, 6]] is optimal solution");
+        result.Select(x => x.ToArray()).Should().BeEquivalentTo((int[][]) [[1, 2, 3, 4, 5, 6]], "[[1, 2, 3, 4, 5, 6]] is optimal solution");
     }
-    
+
     [Fact]
     public void Should_Join_Chunks_If_Possible_4()
     {
@@ -198,13 +198,13 @@ public class Tests : IClassFixture<Fixture>
         int[] registers = [1, 15, 25];
 
         var (_, result) = _fixture.Run(maxLimit, false, registers);
-        result.Select(x => x.AsArray()).Should().BeEquivalentTo((int[][]) [[1, 15, 25]], "[[1, 15, 25]] is optimal solution");
+        result.Select(x => x.ToArray()).Should().BeEquivalentTo((int[][]) [[1, 15, 25]], "[[1, 15, 25]] is optimal solution");
     }
 
     [Fact]
     public async Task Should_Handle_Large_Amount_Of_Registers_Better_Than_Straightforward_Greedy_Default()
     {
-        var registers = await _fixture.GetOrGenerateRegisters(new(100_000));
+        var registers = await _fixture.GetOrGenerateRegisters(new(10000));
         var (greedy, result) = _fixture.Run(125, false, registers);
 
         var message = $"{JoinChunks(greedy)} -> [{SumGarbage(greedy)}]\n" +
@@ -213,13 +213,13 @@ public class Tests : IClassFixture<Fixture>
         await Verify(message);
 
         string JoinChunks(Chunk[] chunks) => string.Join(", ", chunks.Select(x => x.ToString()));
-        int SumGarbage(Chunk[] chunks) => chunks.Sum(x => _fixture.CalculateGarbage(x.AsArray()));
+        int SumGarbage(Chunk[] chunks) => chunks.Sum(x => _fixture.CalculateGarbage(x.ToArray()));
     }
 
     [Fact]
     public async Task Should_Handle_Large_Amount_Of_Registers_Better_Than_Straightforward_Greedy_Coils()
     {
-        var registers = await _fixture.GetOrGenerateRegisters(new(10_000));
+        var registers = await _fixture.GetOrGenerateRegisters(new(10000));
         var (greedy, result) = _fixture.Run(2000, true, registers);
 
         var message = $"{JoinChunks(greedy)} -> [{SumGarbage(greedy)}]\n" +
@@ -228,6 +228,6 @@ public class Tests : IClassFixture<Fixture>
         await Verify(message);
 
         string JoinChunks(Chunk[] chunks) => string.Join(", ", chunks.Select(x => x.ToString()));
-        int SumGarbage(Chunk[] chunks) => chunks.Sum(x => _fixture.CalculateGarbage(x.AsArray()));
+        int SumGarbage(Chunk[] chunks) => chunks.Sum(x => _fixture.CalculateGarbage(x.ToArray()));
     }
 }

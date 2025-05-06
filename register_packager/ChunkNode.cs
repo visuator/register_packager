@@ -1,31 +1,10 @@
-﻿using System.Diagnostics;
-using System.Text;
+﻿using System.Text;
 
 namespace register_packager;
 
 internal class ChunkNode(Chunk chunk)
 {
-    internal static ChunkNode CreateFictiveNode() => new(Chunk.Empty);
-    internal static ChunkNode CreateHead(ChunkNode? tail, params Chunk[] chunks)
-    {
-        var node = tail;
-        for (var i = chunks.Length - 1; i >= 0; i--)
-        {
-            var chunk = chunks[i];
-            if (chunk.Length != 0)
-            {
-                node = new ChunkNode(chunk)
-                {
-                    Next = node,
-                    Chunk = chunk
-                };
-            }
-        }
-        ArgumentNullException.ThrowIfNull(node);
-
-        return node;
-    }
-    internal Chunk Chunk { get; private set; } = chunk;
+    internal Chunk Chunk { get; set; } = chunk;
     internal ChunkNode? Next { get; private set; }
     internal ChunkNode Append(Chunk chunk)
     {
@@ -45,22 +24,6 @@ internal class ChunkNode(Chunk chunk)
     {
         Chunk = chunkNode.Chunk;
         Next = chunkNode.Next;
-    }
-    internal (int Depth, int Garbage) CalculateWeight()
-    {
-        var garbage = 0;
-        var depth = 0;
-        var current = this;
-        while (current is not null)
-        {
-            if (current.Chunk.Length != 0)
-            {
-                depth++;
-                garbage += current.Chunk.CalculateGarbage();
-            }
-            current = current.Next;
-        }
-        return (depth, garbage);
     }
     internal IEnumerable<Chunk> GetChunks()
     {

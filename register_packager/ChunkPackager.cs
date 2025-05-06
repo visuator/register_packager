@@ -21,10 +21,10 @@ public class ChunkPackager
         return (preparer.Prepare(registers) switch
             {
                 WriteChunkNodeResult wr => wr.Head.GetChunks(),
-                ReadChunkNodeResult rr => new ReadChunkPackager(_options, preparer).Package(rr.Head).GetChunks(),
+                ReadChunkNodeResult rr => new ReadChunkPackager(_options, preparer).Package(rr).GetChunks(),
                 _ => throw new InvalidOperationException("unknown mode")
             })
-            .Select(x => x.AsArray())
+            .Select(x => x.ToArray())
             .ToArray();
     }
 }
