@@ -31,7 +31,8 @@ public readonly struct Chunk(int[] registers) : IEnumerable<int>
     public override string ToString() => $"[{string.Join(", ", _registers)}]";
     public IEnumerator<int> GetEnumerator() => _registers.AsEnumerable().GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-
+    internal int Length { get; } = registers.Length;
+    internal int Distance { get; } = CalculateDistance(registers);
     internal (int GarbageInitial, List<ChunkPair>) GetMinGarbageCandidates(ChunkPreparerOptions options, Chunk second, bool rearrange)
     {
         List<ChunkPair> buffer = new(_registers.Length);
@@ -40,8 +41,6 @@ public readonly struct Chunk(int[] registers) : IEnumerable<int>
         ReadOnlySpan<int> concat = [.._registers, ..second._registers];
         for (var splitPoint = _registers.Length - 1; splitPoint >= 0; splitPoint--)
         {
-            //todo: if current = follow exclude this combination
-            //todo: save chunk distance info
             var trimLeft = concat[..splitPoint];
             var joinRight = concat[splitPoint..];
 
@@ -62,6 +61,4 @@ public readonly struct Chunk(int[] registers) : IEnumerable<int>
         }
         return (garbageInitial, buffer);
     }
-    internal int Length { get; } = registers.Length;
-    internal int Distance { get; } = CalculateDistance(registers);
 }

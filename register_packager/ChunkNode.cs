@@ -14,10 +14,7 @@ internal class ChunkNode(Chunk chunk)
     }
     internal ChunkNode InsertBefore(Chunk chunk)
     {
-        var node = new ChunkNode(chunk)
-        {
-            Next = this
-        };
+        var node = new ChunkNode(chunk) { Next = this };
         return node;
     }
     internal void Replace(ChunkNode chunkNode)
