@@ -3,6 +3,12 @@
 public class ChunkPreparerOptions
 {
     private int _maxLimit;
+
+    public ChunkPreparerOptions()
+    {
+        ChunkOptions = new(this);
+    }
+
     public int MaxLimit
     {
         get => _maxLimit;
@@ -15,4 +21,5 @@ public class ChunkPreparerOptions
 
     public bool Legacy_CoilsCompatibility { get; set; }
     public bool ReadOnlyMode { get; set; }
+    public ChunkOptions ChunkOptions { get; }
 }

@@ -50,7 +50,7 @@ public readonly struct Chunk(int[] registers) : IEnumerable<int>
             {
                 break;
             }
-            if (options.Legacy_CoilsCompatibility && !(IsLegacy_CoilsCompatible(trimLeft) && IsLegacy_CoilsCompatible(distance)))
+            if (!options.ChunkOptions.IsLegacy_CoilsCompatible(trimLeft) || !options.ChunkOptions.IsLegacy_CoilsCompatible(distance))
             {
                 continue;
             }

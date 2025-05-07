@@ -20,7 +20,7 @@ internal class ChunkNodePreparer(ChunkPreparerOptions options)
         {
             var distance = registers[index] - registers[index - 1];
             var t = currentLimit + distance;
-            if (options.Legacy_CoilsCompatibility && !Chunk.IsLegacy_CoilsCompatible(t))
+            if (!options.ChunkOptions.IsLegacy_CoilsCompatible(t))
             {
                 node = node.Append(registers[chunkStart..index]);
                 depth++;
@@ -75,9 +75,7 @@ internal class ChunkNodePreparer(ChunkPreparerOptions options)
                 var delta = c - prev;
                 var t = currentLimit + delta;
 
-                bool isCompatible = !options.Legacy_CoilsCompatibility || Chunk.IsLegacy_CoilsCompatible(t);
-
-                if (t <= options.MaxLimit && isCompatible)
+                if (t <= options.MaxLimit && options.ChunkOptions.IsLegacy_CoilsCompatible(t))
                 {
                     concat.Add(c);
                     currentLimit += delta;
