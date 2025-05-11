@@ -1,15 +1,16 @@
 ﻿namespace register_packager;
 
-internal class ChunkNode(Chunk chunk)
+internal class ChunkNode
 {
     internal static ChunkNode CreateFictiveNode() => new(Chunk.Empty);
+
     internal static ChunkNode CreateHead(ChunkNode? tail, params Chunk[] chunks)
     {
         var node = tail;
         for (var i = chunks.Length - 1; i >= 0; i--)
         {
             var chunk = chunks[i];
-            if (chunk.Length != 0)
+            if (chunk.Registers.Length != 0)
             {
                 node = new ChunkNode(chunk)
                 {
@@ -22,8 +23,15 @@ internal class ChunkNode(Chunk chunk)
 
         return node;
     }
-    internal Chunk Chunk { get; private set; } = chunk;
+
+    private ChunkNode(Chunk chunk)
+    {
+        Chunk = chunk;
+    }
+
+    internal Chunk Chunk { get; private set; }
     internal ChunkNode? Next { get; private set; }
+
     internal void Append(Chunk chunk)
     {
         var current = this;
@@ -33,41 +41,53 @@ internal class ChunkNode(Chunk chunk)
         }
         current.Next = new(chunk);
     }
-    internal ChunkNode InsertBefore(Chunk chunk)
-    {
-        var node = new ChunkNode(chunk)
-        {
-            Next = this
-        };
-        return node;
-    }
+
     internal void Replace(ChunkNode chunkNode)
     {
         Chunk = chunkNode.Chunk;
         Next = chunkNode.Next;
     }
-    internal (int Depth, int Distance) CalculateWeight()
+
+    private static int GetNumberWithZeros(int x) => (int)Math.Pow(10, (int)Math.Floor(Math.Log10(x)) + 1);
+    private (int Depth, int Garbage) CalculateTail()
     {
-        var distance = 0;
+        var garbage = 0;
         var depth = 0;
         var current = this;
         while (current is not null)
         {
-            distance += current.Chunk.CalculateDistance();
-            if (current.Chunk.Length != 0)
+            garbage += current.Chunk.CalculateGarbage();
+            if (current.Chunk.Registers.Length != 0)
             {
                 depth++;
             }
             current = current.Next;
         }
-        return (depth, distance);
+        return (depth, garbage);
     }
+    internal static int CalculateWeight(int maxLimit, ChunkNode? tail, params Chunk[] chunks)
+    {
+        var (depth, garbage) = tail?.CalculateTail() ?? (0, 0);
+        foreach (var chunk in chunks)
+        {
+            if (chunk.Registers.Length != 0)
+            {
+                garbage += chunk.CalculateGarbage();
+            }
+            else
+            {
+                depth--;
+            }
+        }
+        return garbage + GetNumberWithZeros(maxLimit) * Math.Max(0, depth);
+    }
+
     internal IEnumerable<Chunk> GetChunks()
     {
         var current = this;
         while (current is not null)
         {
-            if (current.Chunk.Length != 0)
+            if (current.Chunk.Registers.Length != 0)
             {
                 yield return current.Chunk;
             }
