@@ -13,10 +13,13 @@ public class Fixture
     public int[][] Run(int maxLimit, bool legacy_coilsCompatibility, int[] registers)
     {
         var options = new ChunkPreparerOptions() { Legacy_CoilsCompatibility = legacy_coilsCompatibility, MaxLimit = maxLimit, ReadOnlyMode = true };
-        var preparer = new ChunkNodePreparer(options);
-        var packager = new ChunkPackager(options);
-        var result = packager.Package(registers);
-        var greedy = preparer.Prepare(registers).Head.GetChunks().ToArray();
+        var result = new ChunkPackager(x =>
+        {
+            x.Legacy_CoilsCompatibility = legacy_coilsCompatibility;
+            x.MaxLimit = maxLimit;
+            x.ReadOnlyMode = true;
+        }).Package(registers);
+        var greedy = ChunkNodePreparer.Prepare(options, registers).Head.GetChunks().ToArray();
 
         _testOutputHelper.WriteLine($"[{string.Join(", ", result.Select(x => $"[{string.Join(", ", x)}]"))}] -> [Chunks: {result.Length}, Garbage: {result.Sum(x => CalculateDistance(x))}]");
         DefaultAsserts(options, registers, greedy, result);
@@ -34,7 +37,7 @@ public class Fixture
 
         if (flattenChunks.Length == greedyChunks.Length)
         {
-            chunks.Sum(x => CalculateDistance(x)).Should().BeLessThanOrEqualTo(greedyChunks.Sum(x => x.CalculateDistance()));
+            chunks.Sum(x => CalculateGarbage(x)).Should().BeLessThanOrEqualTo(greedyChunks.Sum(x => x.CalculateGarbage()));
         }
 
         if (options.Legacy_CoilsCompatibility)
@@ -47,6 +50,17 @@ public class Fixture
     {
         var distance = CalculateDistance(registers);
         return distance <= 256 || distance % 8 == 0;
+    }
+    private static int CalculateGarbage(ReadOnlySpan<int> registers)
+    {
+        var garbage = 0;
+        var index = 1;
+        while (index < registers.Length)
+        {
+            garbage += registers[index] - registers[index - 1] - 1;
+            index++;
+        }
+        return garbage;
     }
 }
 public class Tests : IClassFixture<Fixture>
@@ -150,14 +164,6 @@ public class Tests : IClassFixture<Fixture>
         var result = _fixture.Run(maxLimit, false, registers);
         result.Should().BeEquivalentTo((int[][]) [[1, 15, 25]], "[[1, 15, 25]] is optimal solution");
     }
-
-    [Fact]
-    public void Test_Case_1()
-    {
-        var registers = File.ReadAllText("registers.txt").Split(", ").Select(int.Parse).OrderBy(x => x).ToArray();
-
-        _fixture.Run(125, false, registers);
-    }
     
     [Theory]
     [InlineData(1024,  true, 16394)]
@@ -165,7 +171,7 @@ public class Tests : IClassFixture<Fixture>
     public void Should_Handle_Large_Amount_Of_Registers_Better_Than_Straightforward_Greedy(int maxLimit, bool legacy_coilsCompatibility, int count)
     {
         var registers = Enumerable.Range(0, count)
-            .Select(_ => RandomNumberGenerator.GetInt32(0, 1_000_000))
+            .Select(_ => RandomNumberGenerator.GetInt32(0, 100_000_000))
             .Distinct()
             .OrderBy(x => x)
             .ToArray();

@@ -13,7 +13,7 @@ public class Benchmarks
     public void Setup()
     {
         _registers = File
-            .ReadAllText(@"C:\Users\Workstation\RiderProjects\register_packager\register_packager_benchmarks\bin\Release\net9.0\registers.txt")
+            .ReadAllText(@"registers.txt")
             .Split(", ").Select(int.Parse).ToArray();
     }
     
