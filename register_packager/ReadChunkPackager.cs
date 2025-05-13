@@ -2,14 +2,25 @@
 
 internal class ReadChunkPackager(ChunkPreparerOptions options, ChunkNodePreparer preparer)
 {
-    internal ChunkNode Package(ReadChunkNodeResult read) => PackageRecursive(read, false).Read.Head;
-    private (int Garbage, ReadChunkNodeResult Read) PackageRecursive(ReadChunkNodeResult read, bool rearrange)
+    public ChunkNode Package(ChunkNode root) => PackageRecursive(root, false);
+    private static readonly Comparer<(int Depth, int Distance)> WeightComparer = Comparer<(int Depth, int Distance)>.Create((x, y) =>
     {
-        var node = read.Head;
-        var depth = read.Depth;
-        var garbage = 0;
-        while (node?.Next != null)
+        if (y.Depth < x.Depth)
         {
+            return 1;
+        }
+        if (y.Depth == x.Depth && y.Distance < x.Distance)
+        {
+            return 1;
+        }
+        return -1;
+    });
+    private ChunkNode PackageRecursive(ChunkNode root, bool rearrange)
+    {
+        var node = root;
+        while (node?.Next is not null)
+        {
+            var current = node.Chunk;
             var follow = node.Next.Chunk;
 
             if (follow.Length == 0)
@@ -17,45 +28,37 @@ internal class ReadChunkPackager(ChunkPreparerOptions options, ChunkNodePreparer
                 break;
             }
 
-            var current = node.Chunk;
-            var tail = node.Next.Next ?? new ChunkNode(Chunk.Empty);
-
-            var (garbageInitial, candidates) = current.GetMinGarbageCandidates(options, follow, rearrange);
-
-            Min<int> min = new(garbageInitial);
+            var tail = node.Next.Next ?? new([]);
             var candidate = node;
-            foreach (var (trimLeft, joinRight, garbageCandidate) in candidates)
+
+            Min<(int, int)> min = new(tail.InsertBefore(follow).InsertBefore(current).CalculateWeight(), WeightComparer);
+            foreach (var (trimLeft, joinRight) in current.GetMinGarbageCandidates(options, follow, rearrange))
             {
                 if (joinRight.Distance > options.MaxLimit)
                 {
-                    var chunks = preparer.Prepare(tail.InsertBefore(joinRight));
-                    if (chunks.Depth <= depth)
+                    foreach (var (trimLeft2, joinRight2) in joinRight.GetMinGarbageCandidates(options, rearrange))
                     {
-                        var (garbageNext, next) = PackageRecursive(chunks, true);
-                        if (min.TryChange(garbageNext))
+                        var next = PackageRecursive(preparer.Prepare(preparer.Prepare(tail.InsertBefore(joinRight2).GetChunks().SelectMany(x => x).ToArray()).Head), true)
+                            .InsertBefore(trimLeft2)
+                            .InsertBefore(trimLeft);
+                        if (min.TryChange(next.CalculateWeight()))
                         {
-                            candidate = next.Head.InsertBefore(trimLeft);
+                            candidate = next;
                         }
                     }
                 }
-                else if (trimLeft.Length != 0)
+                else
                 {
-                    if (min.TryChange(garbageCandidate))
+                    var next = tail.InsertBefore(joinRight).InsertBefore(trimLeft);
+                    if (min.TryChange(next.CalculateWeight()))
                     {
-                        candidate = tail
-                            .InsertBefore(joinRight)
-                            .InsertBefore(trimLeft);
+                        candidate = next;
                     }
                 }
             }
-            if (candidate != node)
-            {
-                node.Replace(candidate);
-                garbage += min.Value;
-            }
+            node.Replace(candidate);
             node = node.Next;
-            depth--;
         }
-        return (garbage, read);
+        return root;
     }
 }

@@ -34,6 +34,22 @@ internal class ChunkNode(Chunk chunk)
             current = current.Next;
         }
     }
+    internal (int Depth, int Garbage) CalculateWeight()
+    {
+        var node = this;
+        var depth = 0;
+        var garbage = 0;
+        while (node is not null)
+        {
+            if (node.Chunk.Length != 0)
+            {
+                depth++;
+                garbage += node.Chunk.Garbage;
+            }
+            node = node.Next;
+        }
+        return (depth, garbage);
+    }
     public override string ToString()
     {
         StringBuilder sb = new();
