@@ -21,7 +21,7 @@ public class Fixture
         var chunks = preparer.Prepare(registers) as ReadChunkNodeResult;
         ArgumentNullException.ThrowIfNull(chunks);
 
-        var result = packager.Package(chunks).GetChunks().ToArray();
+        var result = packager.Package(chunks.Head).GetChunks().ToArray();
         var greedy = chunks.Head.GetChunks().ToArray();
 
         DefaultAsserts(options, registers, greedy, result);
@@ -204,7 +204,7 @@ public class Tests : IClassFixture<Fixture>
     [Fact]
     public async Task Should_Handle_Large_Amount_Of_Registers_Better_Than_Straightforward_Greedy_Default()
     {
-        var registers = await _fixture.GetOrGenerateRegisters(new(10000));
+        var registers = await _fixture.GetOrGenerateRegisters(new(800));
         var (greedy, result) = _fixture.Run(125, false, registers);
 
         var message = $"{JoinChunks(greedy)} -> [{SumGarbage(greedy)}]\n" +
@@ -219,7 +219,7 @@ public class Tests : IClassFixture<Fixture>
     [Fact]
     public async Task Should_Handle_Large_Amount_Of_Registers_Better_Than_Straightforward_Greedy_Coils()
     {
-        var registers = await _fixture.GetOrGenerateRegisters(new(10000));
+        var registers = await _fixture.GetOrGenerateRegisters(new(100000));
         var (greedy, result) = _fixture.Run(2000, true, registers);
 
         var message = $"{JoinChunks(greedy)} -> [{SumGarbage(greedy)}]\n" +

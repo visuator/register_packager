@@ -1,4 +1,4 @@
-namespace register_packager;
+﻿namespace register_packager;
 
 public class ChunkOptions(ChunkPreparerOptions options)
 {
